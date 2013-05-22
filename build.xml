@@ -39,16 +39,8 @@
 	<target name="clean">
 		<delete dir="${build.dir}"/>
 	</target>
-
-	<target name="setup" depends="BuildCraft.initialize-version,BuildCraft.setup,BuildCraft.copy-src">
-		<delete file="jenkins.properties" failonerror="false" />
-		<propertyfile file="jenkins.properties">
-			<entry key="LP_VERSION_FULL" value="${lp.version.full}" />
-			<entry key="MC_VERSION" value="${mc.version}" />
-			<entry key="BC_VERSION" value="${bc.version}" />
-			<entry key="FORGE_VERSION" value="${forge.version}" />
-		</propertyfile>
-
+	
+	<target name="copy-deps" depends="BuildCraft.copy-src">
 		<mkdir dir="${download.dir}"/>
 
 		<get src="${downloadserver.full}forestry-api-${forestry.version}.zip" dest="${download.dir}" usetimestamp="True"/>
@@ -139,7 +131,19 @@
 		</copy>
 
 		<echo message="Copied dummy files"/>
+	</target>
 
+	<target name="setup" depends="BuildCraft.initialize-version,BuildCraft.setup">
+		<delete file="jenkins.properties" failonerror="false" />
+		<propertyfile file="jenkins.properties">
+			<entry key="LP_VERSION_FULL" value="${lp.version.full}" />
+			<entry key="MC_VERSION" value="${mc.version}" />
+			<entry key="BC_VERSION" value="${bc.version}" />
+			<entry key="FORGE_VERSION" value="${forge.version}" />
+		</propertyfile>
+	</target>
+
+	<target name="update-md5">
 		<!-- Update MD5 otherwise we get all the buildcraft classes too :/ -->
 		<exec dir="${mcp.dir}" executable="cmd" osfamily="windows" failonerror="true">
 			<arg line="/c"/>
@@ -155,7 +159,7 @@
 		<echo message="Regenerated MD5s"/>
 	</target>
 
-	<target name="copySRC" >
+	<target name="copy-src" depends="copy-deps">
 		<taskdef resource="net/sf/antcontrib/antcontrib.properties">
 			<classpath>
 				<pathelement location="${lib.dir}/ant-contrib/ant-contrib-${antcont.version}.jar"/>
@@ -182,9 +186,13 @@
 				<replace file="${commonlp.dir}/logisticspipes/LogisticsPipes.java" token="%------------CERTIFICATE-SUM-----------%" value='*/ certificateFingerprint="${fingerprint}", /*'/>
 			</then>
 		</if>
+
+		<!-- Create resources zip for MC in mcp -->
+		<zip destfile="${mcp.dir}/jars/mods/LogisticsPipes_resources.zip" basedir="${lp.dir}/resources" excludes="mcmod.info"/>
+		
 	</target>
 
-	<target name="compile" depends="copySRC">
+	<target name="compile" depends="update-md5,copy-src">
 
 		<echo message="Compiling version ${lp.version.full}"/>
 
@@ -219,10 +227,6 @@
 		<replace file="${classes.dir}/client/mcmod.info" token="%VERSION%" value="${lp.version.full}"/>
 
 		<echo message="Compiling finished"/>
-
-		<!-- Create resources zip for MC in mcp -->
-		<zip destfile="${mcp.dir}/jars/mods/LogisticsPipes_resources.zip" basedir="${lp.dir}/resources" excludes="mcmod.info"/>
-
 	</target>
 
 	<target name="package-simple" depends="compile">
