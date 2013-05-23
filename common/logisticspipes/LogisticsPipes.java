@@ -139,7 +139,7 @@ import cpw.mods.fml.relauncher.Side;
 				"after:factorization;" +
 				"after:GregTech_Addon;" +
 				"after:AppliedEnergistics;" +
-				"after:ThermalExpansion|Transport;" +
+				"after:ThermalExpansion;" +
 				"after:BetterStorage")
 @NetworkMod(
 		channels = {NetworkConstants.LOGISTICS_PIPES_CHANNEL_NAME},
@@ -192,6 +192,7 @@ public class LogisticsPipes {
 	public static Item LogisticsLiquidInsertion;
 	public static Item LogisticsLiquidProvider;
 	public static Item LogisticsLiquidRequest;
+	public static Item LogisticsLiquidExtractor;
 	
 	
 	public static Item LogisticsNetworkMonitior;

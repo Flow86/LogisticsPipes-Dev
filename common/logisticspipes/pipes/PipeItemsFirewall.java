@@ -26,6 +26,7 @@ import logisticspipes.textures.Textures;
 import logisticspipes.textures.Textures.TextureType;
 import logisticspipes.utils.ItemIdentifier;
 import logisticspipes.utils.SimpleInventory;
+import net.minecraft.crash.CrashReportCategory;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.world.World;
@@ -41,6 +42,7 @@ public class PipeItemsFirewall extends CoreRoutedPipe {
 	private boolean blockProvider = false;
 	private boolean blockCrafer = false;
 	private boolean blockSorting = false;
+	private boolean blockPower = true;
 	private boolean isBlocking = true;
 	
 	public PipeItemsFirewall(int itemID) {
@@ -140,6 +142,7 @@ public class PipeItemsFirewall extends CoreRoutedPipe {
 		nbttagcompound.setBoolean("blockProvider", blockProvider);
 		nbttagcompound.setBoolean("blockCrafer", blockCrafer);
 		nbttagcompound.setBoolean("blockSorting", blockSorting);
+		nbttagcompound.setBoolean("blockPower", blockPower);
 		nbttagcompound.setBoolean("isBlocking", isBlocking);
 	}
 
@@ -156,6 +159,9 @@ public class PipeItemsFirewall extends CoreRoutedPipe {
 		blockProvider = nbttagcompound.getBoolean("blockProvider");
 		blockCrafer = nbttagcompound.getBoolean("blockCrafer");
 		blockSorting = nbttagcompound.getBoolean("blockSorting");
+		if(nbttagcompound.hasKey("blockPower")) {
+			blockPower = nbttagcompound.getBoolean("blockPower");
+		}
 		isBlocking = nbttagcompound.getBoolean("isBlocking");
 	}
 
@@ -216,6 +222,11 @@ public class PipeItemsFirewall extends CoreRoutedPipe {
 			public boolean blockRouting() {
 				return blockSorting;
 			}
+
+			@Override
+			public boolean blockPower() {
+				return blockPower;
+			}
 		};
 	}
 
@@ -246,6 +257,15 @@ public class PipeItemsFirewall extends CoreRoutedPipe {
 		MainProxy.sendPacketToServer(new PacketPipeBitSet(NetworkConstants.FIREWALL_FLAG_SET, getX(), getY(), getZ(), getFlags()).getPacket());
 	}
 
+	public boolean isBlockPower() {
+		return blockPower;
+	}
+
+	public void setBlockPower(boolean blockPower) {
+		this.blockPower = blockPower;
+		MainProxy.sendPacketToServer(new PacketPipeBitSet(NetworkConstants.FIREWALL_FLAG_SET, getX(), getY(), getZ(), getFlags()).getPacket());
+	}
+
 	public boolean isBlocking() {
 		return isBlocking;
 	}
@@ -260,7 +280,8 @@ public class PipeItemsFirewall extends CoreRoutedPipe {
 		flags.set(0, blockProvider);
 		flags.set(1, blockCrafer);
 		flags.set(2, blockSorting);
-		flags.set(3, isBlocking);
+		flags.set(3, blockPower);
+		flags.set(4, isBlocking);
 		return flags;
 	}
 	
@@ -268,22 +289,20 @@ public class PipeItemsFirewall extends CoreRoutedPipe {
 		blockProvider = flags.get(0);
 		blockCrafer = flags.get(1);
 		blockSorting = flags.get(2);
-		isBlocking = flags.get(3);
-		//updateAllRouters();
+		blockPower = flags.get(3);
+		isBlocking = flags.get(4);
 	}
 
 	@Override
 	public boolean hasGenericInterests() {
 		return true;
 	}
-	/*
-	private void updateAllRouters() {
-		this.router.flagForRoutingUpdate();
-		for(IRouter r:routers){
-			if(r!=null)
-				r.flagForRoutingUpdate();
+
+	@Override
+	protected void addRouterCrashReport(CrashReportCategory crashReportCategory) {
+		for(int i=0; i<7;i++) {
+			ForgeDirection dir = ForgeDirection.getOrientation(i);
+			crashReportCategory.addCrashSection("Router (" + dir.toString() + ")", this.getRouter(dir));
 		}
 	}
-	*/
-
 }
