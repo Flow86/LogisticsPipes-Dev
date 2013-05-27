@@ -3,6 +3,7 @@ package logisticspipes.modules;
 import java.util.List;
 
 import logisticspipes.api.IRoutedPowerProvider;
+import logisticspipes.interfaces.IInventoryUtil;
 import logisticspipes.interfaces.ILogisticsModule;
 import logisticspipes.interfaces.ISendRoutedItem;
 import logisticspipes.interfaces.IWorldProvider;
@@ -73,7 +74,7 @@ public class ModuleElectricBuffer implements ILogisticsModule {
 
 	private final SinkReply _sinkReply = new SinkReply(FixedPriority.ElectricNetwork, 0, true, false, 1, 0);
 	@Override
-	public SinkReply sinksItem(ItemIdentifier stack, int bestPriority, int bestCustomPriority) {
+	public SinkReply sinksItem(ItemIdentifier stack, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
 		if (bestPriority >= FixedPriority.ElectricNetwork.ordinal()) return null;
 		if (SimpleServiceLocator.IC2Proxy.isElectricItem(stack.makeNormalStack(1))) {
 			if (_power.canUseEnergy(1)) {
@@ -93,7 +94,7 @@ public class ModuleElectricBuffer implements ILogisticsModule {
 		if (++currentTickCount < ticksToAction) return;
 		currentTickCount = 0;
 
-		IInventory inv = _invProvider.getPointedInventory();
+		IInventoryUtil inv = _invProvider.getPointedInventory();
 		if (inv == null) return;
 		for (int i = 0; i < inv.getSizeInventory(); i++) {
 			ItemStack stack = inv.getStackInSlot(i);

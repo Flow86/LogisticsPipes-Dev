@@ -149,7 +149,7 @@ public class PipeItemsProviderLogistics extends CoreRoutedPipe implements IProvi
 				_orderManager.sendFailed();
 				return 0;
 			}
-			SinkReply reply = LogisticsManagerV2.canSink(dRtr, null, true, stack.getItem(), null, true);
+			SinkReply reply = LogisticsManagerV2.canSink(dRtr, null, true, stack.getItem(), null, true,false);
 			boolean defersend = false;
 			if(reply != null) {// some pipes are not aware of the space in the adjacent inventory, so they return null
 				if(reply.maxNumberOfItems < wanted) {
@@ -296,7 +296,7 @@ public class PipeItemsProviderLogistics extends CoreRoutedPipe implements IProvi
 			if (tile.tile instanceof TileGenericPipe) continue;
 			IInventoryUtil inv = this.getAdaptedInventoryUtil(tile);
 			
-			HashMap<ItemIdentifier, Integer> currentInv = inv.getItemsAndCount();
+			Map<ItemIdentifier, Integer> currentInv = inv.getItemsAndCount();
 outer:
 			for (Entry<ItemIdentifier, Integer> currItem : currentInv.entrySet()) {
 				if(items.containsKey(currItem.getKey())) continue;

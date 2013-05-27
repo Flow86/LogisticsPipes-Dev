@@ -34,13 +34,12 @@ public class ModulePolymorphicItemSink implements ILogisticsModule {
 
 	private static final SinkReply _sinkReply = new SinkReply(FixedPriority.ItemSink, 0, true, false, 3, 0);
 	@Override
-	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority) {
+	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
 		if(bestPriority > _sinkReply.fixedPriority.ordinal() || (bestPriority == _sinkReply.fixedPriority.ordinal() && bestCustomPriority >= _sinkReply.customPriority)) return null;
-		IInventory targetInventory = _invProvider.getSneakyInventory();
+		IInventoryUtil targetInventory = _invProvider.getSneakyInventory();
 		if (targetInventory == null) return null;
 		
-		IInventoryUtil invUtil = SimpleServiceLocator.inventoryUtilFactory.getInventoryUtil(targetInventory);
-		if (!invUtil.containsUndamagedItem(item.getUndamaged())) return null;
+		if (!targetInventory.containsUndamagedItem(item.getUndamaged())) return null;
 		
 		if(_power.canUseEnergy(3)) {
 			return _sinkReply;
