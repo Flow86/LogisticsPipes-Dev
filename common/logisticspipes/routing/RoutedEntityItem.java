@@ -390,6 +390,8 @@ public class RoutedEntityItem extends EntityPassiveItem implements IRoutedItem{
 	}
 	@Override
 	public long getTickToTimeOut() {
+		if(this.container == null || this.container.worldObj == null)
+			return 0;
 		return delay-this.container.worldObj.getTotalWorldTime();
 	}
 
