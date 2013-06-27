@@ -1,9 +1,9 @@
 package logisticspipes.pipes;
 
-import logisticspipes.interfaces.ILogisticsModule;
 import logisticspipes.interfaces.routing.IRequestItems;
 import logisticspipes.logic.LogicLiquidSupplier;
 import logisticspipes.logisticspipes.IRoutedItem;
+import logisticspipes.modules.LogisticsModule;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.textures.Textures;
@@ -47,19 +47,19 @@ public class PipeItemsLiquidSupplier extends CoreRoutedPipe implements IRequestI
 	@Override
 	public TextureType getCenterTexture() {
 		return Textures.LOGISTICSPIPE_LIQUIDSUPPLIER_TEXTURE;
-	} 
+	}
 
 	/* TRIGGER INTERFACE */
 	public boolean isRequestFailed(){
 		return _lastRequestFailed;
 	}
-	 
+
 	public void setRequestFailed(boolean value){
 		_lastRequestFailed = value;
 	}
 
 	@Override
-	public ILogisticsModule getLogisticsModule() {
+	public LogisticsModule getLogisticsModule() {
 		return null;
 	}
 

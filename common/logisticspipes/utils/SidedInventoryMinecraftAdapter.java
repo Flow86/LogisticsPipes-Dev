@@ -10,6 +10,8 @@ package logisticspipes.utils;
 
 import java.util.ArrayList;
 
+import com.google.common.primitives.Ints;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.ISidedInventory;
@@ -26,22 +28,32 @@ public final class SidedInventoryMinecraftAdapter implements IInventory {
 	public final ISidedInventory _sidedInventory;
 	private final int _slotMap[];
 	
-	public SidedInventoryMinecraftAdapter(ISidedInventory sidedInventory, ForgeDirection side) {
+	public SidedInventoryMinecraftAdapter(ISidedInventory sidedInventory, ForgeDirection side, boolean forExtraction) {
 		_sidedInventory = sidedInventory;
 		if(side == ForgeDirection.UNKNOWN) {
-			_slotMap = buildAllSidedMap(sidedInventory);
+			_slotMap = buildAllSidedMap(sidedInventory,forExtraction);
 		} else {
-			_slotMap = _sidedInventory.getAccessibleSlotsFromSide(side.ordinal());
+			ArrayList<Integer> list = new ArrayList<Integer>();
+
+			int allSlots[] = _sidedInventory.getAccessibleSlotsFromSide(side.ordinal());
+			for(int number:allSlots) {
+				ItemStack item=_sidedInventory.getStackInSlot(number);
+				if(!list.contains((Integer)number) && (!forExtraction || // check extract condition
+					(item!=null && _sidedInventory.canExtractItem(number,item,side.ordinal())))){
+						list.add(number);
+				}
+			}
+			_slotMap=Ints.toArray(list);
 		}
 	}
 
-	private int[] buildAllSidedMap(ISidedInventory sidedInventory) {
+	private int[] buildAllSidedMap(ISidedInventory sidedInventory, boolean forExtraction) {
 		ArrayList<Integer> list = new ArrayList<Integer>();
 		
 		for(int i = 0; i < 6; i++) {
 			int slots[] = _sidedInventory.getAccessibleSlotsFromSide(i);
 			for(int number:slots) {
-				if(!list.contains((Integer)number)) {
+				if((!forExtraction || _sidedInventory.canExtractItem(number,_sidedInventory.getStackInSlot(number),i)) && !list.contains((Integer)number)) {
 					list.add(number);
 				}
 			}

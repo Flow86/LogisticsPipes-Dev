@@ -1,9 +1,9 @@
 package logisticspipes.recipes;
 
 import logisticspipes.LogisticsPipes;
-import logisticspipes.interfaces.ILogisticsModule;
 import logisticspipes.items.ItemModule;
 import logisticspipes.items.RemoteOrderer;
+import logisticspipes.modules.LogisticsModule;
 import net.minecraft.block.Block;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.Item;
@@ -52,13 +52,6 @@ public class RecipeManager {
 			}
 		};
 		LocalCraftingManager craftingManager = new LocalCraftingManager();
-		
-		craftingManager.addRecipe(new ItemStack(LogisticsPipes.LogisticsBuilderSupplierPipe, 1), new Object[] {
-			"iPy", 
-			Character.valueOf('i'), "dyeBlack", 
-			Character.valueOf('P'), LogisticsPipes.LogisticsBasicPipe, 
-			Character.valueOf('y'), "dyeYellow"
-		});
 		
 		craftingManager.addRecipe(new ItemStack(LogisticsPipes.LogisticsLiquidSupplierPipe, 1), new Object[] {
 			" B ", 
@@ -470,7 +463,7 @@ public class RecipeManager {
 
 
 		for(int i=0; i<1000;i++) {
-			ILogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(new ItemStack(LogisticsPipes.ModuleItem, 1, i), null, null, null, null, null);
+			LogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(new ItemStack(LogisticsPipes.ModuleItem, 1, i), null, null, null, null, null);
 			if(module != null) {
 				NBTTagCompound nbt = new NBTTagCompound();
 				boolean force = false;

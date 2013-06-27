@@ -6,15 +6,13 @@ import java.util.List;
 
 import logisticspipes.api.IRoutedPowerProvider;
 import logisticspipes.interfaces.IClientInformationProvider;
-import logisticspipes.interfaces.ILogisticsGuiModule;
-import logisticspipes.interfaces.ILogisticsModule;
 import logisticspipes.interfaces.IModuleWatchReciver;
 import logisticspipes.interfaces.ISendRoutedItem;
 import logisticspipes.interfaces.IWorldProvider;
 import logisticspipes.logisticspipes.IInventoryProvider;
 import logisticspipes.network.GuiIDs;
 import logisticspipes.network.NetworkConstants;
-import logisticspipes.network.packets.PacketModuleNBT;
+import logisticspipes.network.oldpackets.PacketModuleNBT;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.utils.ItemIdentifier;
@@ -29,7 +27,7 @@ import cpw.mods.fml.common.network.Player;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-public class ModuleThaumicAspectSink implements ILogisticsGuiModule, IClientInformationProvider, IModuleWatchReciver {
+public class ModuleThaumicAspectSink extends LogisticsGuiModule implements IClientInformationProvider, IModuleWatchReciver {
 
 	private int slot = 0;
 
@@ -65,7 +63,7 @@ public class ModuleThaumicAspectSink implements ILogisticsGuiModule, IClientInfo
 	@Override 
 	public final int getY() {
 		if(slot>=0)
-			return this._power.getX();
+			return this._power.getY();
 		else 
 			return -1;
 	}
@@ -73,7 +71,7 @@ public class ModuleThaumicAspectSink implements ILogisticsGuiModule, IClientInfo
 	@Override 
 	public final int getZ() {
 		if(slot>=0)
-			return this._power.getX();
+			return this._power.getZ();
 		else 
 			return -1-slot;
 	}
@@ -81,7 +79,7 @@ public class ModuleThaumicAspectSink implements ILogisticsGuiModule, IClientInfo
 	
 	private static final SinkReply _sinkReply = new SinkReply(FixedPriority.ItemSink, -2, true, false, 5, 0);
 	@Override
-	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority) {
+	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
 		if(bestPriority > _sinkReply.fixedPriority.ordinal() || (bestPriority == _sinkReply.fixedPriority.ordinal() && bestCustomPriority >= _sinkReply.customPriority)) return null;
 		if(isOfInterest(item)) return _sinkReply;
 		return null;
@@ -99,7 +97,7 @@ public class ModuleThaumicAspectSink implements ILogisticsGuiModule, IClientInfo
 	}
 
 	@Override
-	public ILogisticsModule getSubModule(int slot) {
+	public LogisticsModule getSubModule(int slot) {
 		return null;
 	}
 

@@ -4,22 +4,19 @@ import java.util.List;
 
 import logisticspipes.api.IRoutedPowerProvider;
 import logisticspipes.interfaces.IInventoryUtil;
-import logisticspipes.interfaces.ILogisticsModule;
 import logisticspipes.interfaces.ISendRoutedItem;
 import logisticspipes.interfaces.IWorldProvider;
 import logisticspipes.logisticspipes.IInventoryProvider;
-import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.utils.ItemIdentifier;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
 import net.minecraft.client.renderer.texture.IconRegister;
-import net.minecraft.inventory.IInventory;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.Icon;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-public class ModulePolymorphicItemSink implements ILogisticsModule {
+public class ModulePolymorphicItemSink extends LogisticsModule {
 	
 	private IInventoryProvider _invProvider;
 	private IRoutedPowerProvider _power;
@@ -34,13 +31,12 @@ public class ModulePolymorphicItemSink implements ILogisticsModule {
 
 	private static final SinkReply _sinkReply = new SinkReply(FixedPriority.ItemSink, 0, true, false, 3, 0);
 	@Override
-	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority) {
+	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
 		if(bestPriority > _sinkReply.fixedPriority.ordinal() || (bestPriority == _sinkReply.fixedPriority.ordinal() && bestCustomPriority >= _sinkReply.customPriority)) return null;
-		IInventory targetInventory = _invProvider.getSneakyInventory();
+		IInventoryUtil targetInventory = _invProvider.getSneakyInventory(false);
 		if (targetInventory == null) return null;
 		
-		IInventoryUtil invUtil = SimpleServiceLocator.inventoryUtilFactory.getInventoryUtil(targetInventory);
-		if (!invUtil.containsUndamagedItem(item.getUndamaged())) return null;
+		if (!targetInventory.containsUndamagedItem(item.getUndamaged())) return null;
 		
 		if(_power.canUseEnergy(3)) {
 			return _sinkReply;
@@ -55,7 +51,7 @@ public class ModulePolymorphicItemSink implements ILogisticsModule {
 	public void writeToNBT(NBTTagCompound nbttagcompound) {}
 	
 	@Override
-	public ILogisticsModule getSubModule(int slot) {return null;}
+	public LogisticsModule getSubModule(int slot) {return null;}
 
 	@Override
 	public void tick() {}
@@ -70,12 +66,12 @@ public class ModulePolymorphicItemSink implements ILogisticsModule {
 	}
 	@Override 
 	public final int getY() {
-		return this._power.getX();
+		return this._power.getY();
 	}
 	
 	@Override 
 	public final int getZ() {
-		return this._power.getX();
+		return this._power.getZ();
 	}
 	@Override
 	public boolean hasGenericInterests() {

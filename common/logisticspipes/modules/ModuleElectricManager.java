@@ -9,8 +9,7 @@ import logisticspipes.gui.hud.modules.HUDElectricManager;
 import logisticspipes.interfaces.IClientInformationProvider;
 import logisticspipes.interfaces.IHUDModuleHandler;
 import logisticspipes.interfaces.IHUDModuleRenderer;
-import logisticspipes.interfaces.ILogisticsGuiModule;
-import logisticspipes.interfaces.ILogisticsModule;
+import logisticspipes.interfaces.IInventoryUtil;
 import logisticspipes.interfaces.IModuleInventoryReceive;
 import logisticspipes.interfaces.IModuleWatchReciver;
 import logisticspipes.interfaces.ISendRoutedItem;
@@ -19,9 +18,9 @@ import logisticspipes.interfaces.routing.IFilter;
 import logisticspipes.logisticspipes.IInventoryProvider;
 import logisticspipes.network.GuiIDs;
 import logisticspipes.network.NetworkConstants;
-import logisticspipes.network.packets.PacketModuleInteger;
-import logisticspipes.network.packets.PacketModuleInvContent;
-import logisticspipes.network.packets.PacketPipeInteger;
+import logisticspipes.network.oldpackets.PacketModuleInteger;
+import logisticspipes.network.oldpackets.PacketModuleInvContent;
+import logisticspipes.network.oldpackets.PacketPipeInteger;
 import logisticspipes.pipefxhandlers.Particles;
 import logisticspipes.pipes.basic.CoreRoutedPipe.ItemSendMode;
 import logisticspipes.proxy.MainProxy;
@@ -43,7 +42,7 @@ import cpw.mods.fml.common.network.Player;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-public class ModuleElectricManager implements ILogisticsGuiModule, IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver, ISimpleInventoryEventHandler, IModuleInventoryReceive {
+public class ModuleElectricManager extends LogisticsGuiModule implements IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver, ISimpleInventoryEventHandler, IModuleInventoryReceive {
 
 	private final SimpleInventory _filterInventory = new SimpleInventory(9, "Electric Items", 1);
 	private boolean _dischargeMode;
@@ -88,7 +87,7 @@ public class ModuleElectricManager implements ILogisticsGuiModule, IClientInform
 
 	private final SinkReply _sinkReply = new SinkReply(FixedPriority.ElectricNetwork, 0, true, false, 1, 1);
 	@Override
-	public SinkReply sinksItem(ItemIdentifier stackID, int bestPriority, int bestCustomPriority) {
+	public SinkReply sinksItem(ItemIdentifier stackID, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
 		if (bestPriority >= FixedPriority.ElectricNetwork.ordinal()) return null;
 		if (!_power.canUseEnergy(1)) return null;
 		ItemStack stack = stackID.makeNormalStack(1);
@@ -111,7 +110,7 @@ public class ModuleElectricManager implements ILogisticsGuiModule, IClientInform
 	}
 
 	@Override
-	public ILogisticsModule getSubModule(int slot) {return null;}
+	public LogisticsModule getSubModule(int slot) {return null;}
 
 	@Override
 	public void readFromNBT(NBTTagCompound nbttagcompound) {
@@ -130,7 +129,7 @@ public class ModuleElectricManager implements ILogisticsGuiModule, IClientInform
 		if (++currentTick  < ticksToAction) return;
 		currentTick = 0;
 
-		IInventory inv = _invProvider.getPointedInventory();
+		IInventoryUtil inv = _invProvider.getSneakyInventory(true);
 		if(inv == null) return;
 		for(int i=0; i < inv.getSizeInventory(); i++) {
 			ItemStack stack = inv.getStackInSlot(i);
@@ -199,7 +198,7 @@ public class ModuleElectricManager implements ILogisticsGuiModule, IClientInform
 	@Override 
 	public final int getY() {
 		if(slot>=0)
-			return this._invProvider.getX();
+			return this._invProvider.getY();
 		else 
 			return -1;
 	}
@@ -207,7 +206,7 @@ public class ModuleElectricManager implements ILogisticsGuiModule, IClientInform
 	@Override 
 	public final int getZ() {
 		if(slot>=0)
-			return this._invProvider.getX();
+			return this._invProvider.getZ();
 		else 
 			return -1-slot;
 	}

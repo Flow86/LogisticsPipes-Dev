@@ -96,10 +96,12 @@ public class LogicLiquidSupplier extends BaseRoutingLogic implements IRequireRel
 					liquidId.setValue(liquidId.getValue() - haveCount);
 				}
 				for (Entry<ItemIdentifier, Integer> requestedItem : _requestedItems.entrySet()){
-					ItemStack wantItem = requestedItem.getKey().unsafeMakeNormalStack(1);
-					LiquidStack requestedLiquidId = LiquidContainerRegistry.getLiquidForFilledItem(wantItem);
-					if (requestedLiquidId == null) continue;
-					liquidId.setValue(liquidId.getValue() - requestedItem.getValue() * requestedLiquidId.amount);
+					if(requestedItem.getKey().getLiquidIdentifier() == liquidId.getKey()) {
+						ItemStack wantItem = requestedItem.getKey().unsafeMakeNormalStack(1);
+						LiquidStack requestedLiquidId = LiquidContainerRegistry.getLiquidForFilledItem(wantItem);
+						if (requestedLiquidId == null) continue;
+						liquidId.setValue(liquidId.getValue() - requestedItem.getValue() * requestedLiquidId.amount);
+					}
 				}
 			}
 			
@@ -205,7 +207,6 @@ public class LogicLiquidSupplier extends BaseRoutingLogic implements IRequireRel
 	@Override
 	public void onWrenchClicked(EntityPlayer entityplayer) {
 		if(MainProxy.isServer(entityplayer.worldObj)) {
-			//GuiProxy.openGuiLiquidSupplierPipe(entityplayer.inventory, dummyInventory, this);
 			entityplayer.openGui(LogisticsPipes.instance, GuiIDs.GUI_LiquidSupplier_ID, worldObj, xCoord, yCoord, zCoord);
 		}
 	}

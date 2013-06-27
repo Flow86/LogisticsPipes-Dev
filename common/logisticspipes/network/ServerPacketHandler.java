@@ -1,6 +1,5 @@
 package logisticspipes.network;
 
-import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.File;
 import java.util.Collection;
@@ -12,17 +11,17 @@ import logisticspipes.blocks.LogisticsSecurityTileEntity;
 import logisticspipes.blocks.powertile.LogisticsPowerJuntionTileEntity_BuildCraft;
 import logisticspipes.hud.HUDConfig;
 import logisticspipes.interfaces.IBlockWatchingHandler;
-import logisticspipes.interfaces.ILogisticsGuiModule;
 import logisticspipes.interfaces.IModuleWatchReciver;
 import logisticspipes.interfaces.IRotationProvider;
 import logisticspipes.interfaces.ISneakyDirectionReceiver;
 import logisticspipes.interfaces.IWatchingHandler;
 import logisticspipes.interfaces.routing.IRequestLiquid;
 import logisticspipes.logic.BaseLogicCrafting;
-import logisticspipes.logic.BaseLogicSatellite;
 import logisticspipes.logic.LogicLiquidSupplier;
+import logisticspipes.logic.LogicLiquidSupplierMk2;
 import logisticspipes.logic.LogicProvider;
 import logisticspipes.logic.LogicSupplier;
+import logisticspipes.modules.LogisticsGuiModule;
 import logisticspipes.modules.ModuleAdvancedExtractor;
 import logisticspipes.modules.ModuleApiaristAnalyser;
 import logisticspipes.modules.ModuleApiaristSink;
@@ -33,24 +32,25 @@ import logisticspipes.modules.ModuleItemSink;
 import logisticspipes.modules.ModuleModBasedItemSink;
 import logisticspipes.modules.ModuleProvider;
 import logisticspipes.modules.ModuleThaumicAspectSink;
-import logisticspipes.network.packets.PacketBufferTransfer;
-import logisticspipes.network.packets.PacketCoordinates;
-import logisticspipes.network.packets.PacketHUDSettings;
-import logisticspipes.network.packets.PacketInventoryChange;
-import logisticspipes.network.packets.PacketItem;
-import logisticspipes.network.packets.PacketModuleInteger;
-import logisticspipes.network.packets.PacketModuleNBT;
-import logisticspipes.network.packets.PacketNBT;
-import logisticspipes.network.packets.PacketNameUpdatePacket;
-import logisticspipes.network.packets.PacketPipeBeePacket;
-import logisticspipes.network.packets.PacketPipeBitSet;
-import logisticspipes.network.packets.PacketPipeInteger;
-import logisticspipes.network.packets.PacketPipeString;
-import logisticspipes.network.packets.PacketPipeUpdate;
-import logisticspipes.network.packets.PacketRequestGuiContent;
-import logisticspipes.network.packets.PacketRequestSubmit;
-import logisticspipes.network.packets.PacketStringCoordinates;
-import logisticspipes.network.packets.PacketStringList;
+import logisticspipes.network.abstractpackets.CoordinatesPacket;
+import logisticspipes.network.oldpackets.PacketBufferTransfer;
+import logisticspipes.network.oldpackets.PacketCoordinates;
+import logisticspipes.network.oldpackets.PacketHUDSettings;
+import logisticspipes.network.oldpackets.PacketItem;
+import logisticspipes.network.oldpackets.PacketModuleInteger;
+import logisticspipes.network.oldpackets.PacketModuleNBT;
+import logisticspipes.network.oldpackets.PacketNBT;
+import logisticspipes.network.oldpackets.PacketNameUpdatePacket;
+import logisticspipes.network.oldpackets.PacketPipeBeePacket;
+import logisticspipes.network.oldpackets.PacketPipeBitSet;
+import logisticspipes.network.oldpackets.PacketPipeInteger;
+import logisticspipes.network.oldpackets.PacketPipeString;
+import logisticspipes.network.oldpackets.PacketPipeUpdate;
+import logisticspipes.network.oldpackets.PacketRequestGuiContent;
+import logisticspipes.network.oldpackets.PacketRequestSubmit;
+import logisticspipes.network.oldpackets.PacketStringCoordinates;
+import logisticspipes.network.oldpackets.PacketStringList;
+import logisticspipes.network.packets.cpipe.CPipeSatelliteImportBack;
 import logisticspipes.pipes.PipeItemsApiaristSink;
 import logisticspipes.pipes.PipeItemsCraftingLogistics;
 import logisticspipes.pipes.PipeItemsFirewall;
@@ -58,6 +58,7 @@ import logisticspipes.pipes.PipeItemsInvSysConnector;
 import logisticspipes.pipes.PipeItemsLiquidSupplier;
 import logisticspipes.pipes.PipeItemsProviderLogistics;
 import logisticspipes.pipes.PipeItemsRequestLogisticsMk2;
+import logisticspipes.pipes.PipeLiquidSupplierMk2;
 import logisticspipes.pipes.PipeLogisticsChassi;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.MainProxy;
@@ -68,8 +69,6 @@ import logisticspipes.utils.gui.DummyModuleContainer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
-import net.minecraft.network.INetworkManager;
-import net.minecraft.network.packet.Packet250CustomPayload;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 import net.minecraftforge.common.DimensionManager;
@@ -79,44 +78,12 @@ import cpw.mods.fml.common.network.Player;
 
 public class ServerPacketHandler {
 
-	public static void onPacketData(INetworkManager manager, Packet250CustomPayload packet, Player player) {
-		final DataInputStream data = new DataInputStream(new ByteArrayInputStream(packet.data));
-		onPacketData(data, player);
-	}
-	
-	public static void onPacketData(DataInputStream data, Player playerFML) {
+	public static void onPacketData(final DataInputStream data,
+			final Player playerFML, final int packetID) {
 		EntityPlayerMP player = (EntityPlayerMP) playerFML;
 		
 		try {
-			final int packetID = data.read();
 			switch (packetID) {
-
-				case NetworkConstants.CRAFTING_PIPE_NEXT_SATELLITE:
-					final PacketCoordinates packet = new PacketCoordinates();
-					packet.readData(data);
-					onCraftingPipeNextSatellite(player, packet);
-					break;
-
-				case NetworkConstants.CRAFTING_PIPE_PREV_SATELLITE:
-					final PacketCoordinates packetA = new PacketCoordinates();
-					packetA.readData(data);
-					onCraftingPipePrevSatellite(player, packetA);
-					break;
-				case NetworkConstants.CRAFTING_PIPE_IMPORT:
-					final PacketCoordinates packetB = new PacketCoordinates();
-					packetB.readData(data);
-					onCraftingPipeImport(player, packetB);
-					break;
-				case NetworkConstants.SATELLITE_PIPE_NEXT:
-					final PacketCoordinates packetC = new PacketCoordinates();
-					packetC.readData(data);
-					onSatellitePipeNext(player, packetC);
-					break;
-				case NetworkConstants.SATELLITE_PIPE_PREV:
-					final PacketCoordinates packetD = new PacketCoordinates();
-					packetD.readData(data);
-					onSatellitePipePrev(player, packetD);
-					break;
 				case NetworkConstants.CHASSI_GUI_PACKET_ID:
 					final PacketPipeInteger packetE = new PacketPipeInteger();
 					packetE.readData(data);
@@ -411,75 +378,30 @@ public class ServerPacketHandler {
 					packetBk.readData(data);
 					onSetSecurityDestroy(player, packetBk);
 					break;
+				case NetworkConstants.LIQUID_CRAFTING_PIPE_NEXT_SATELLITE_ADVANCED:
+					final PacketPipeInteger packetBl = new PacketPipeInteger();
+					packetBl.readData(data);
+					onCraftingPipeNextLiquidSatelliteAdvanced(player, packetBl);
+					break;
+				case NetworkConstants.LIQUID_CRAFTING_PIPE_PREV_SATELLITE_ADVANCED:
+					final PacketPipeInteger packetBm = new PacketPipeInteger();
+					packetBm.readData(data);
+					onCraftingPipePrevLiquidSatelliteAdvanced(player, packetBm);
+					break;
+				case NetworkConstants.LIQUID_CRAFTING_PIPE_AMOUNT:
+					final PacketModuleInteger packetBn = new PacketModuleInteger();
+					packetBn.readData(data);
+					onCraftingPipeLiquidAmountChange(player, packetBn);
+					break;
+				case NetworkConstants.LIQUID_SUPPLIER_LIQUID_AMOUNT:
+					final PacketPipeInteger packetBo = new PacketPipeInteger();
+					packetBo.readData(data);
+					onLiquidSuppierPipeAmount(player, packetBo);
+					break;
 			}
 		} catch (final Exception ex) {
 			ex.printStackTrace();
 		}
-	}
-
-	private static void onCraftingPipeNextSatellite(EntityPlayerMP player, PacketCoordinates packet) {
-		final TileGenericPipe pipe = getPipe(player.worldObj, packet.posX, packet.posY, packet.posZ);
-		if (pipe == null) {
-			return;
-		}
-
-		if (!(pipe.pipe.logic instanceof BaseLogicCrafting)) {
-			return;
-		}
-
-		((BaseLogicCrafting) pipe.pipe.logic).setNextSatellite(player);
-	}
-
-	private static void onCraftingPipePrevSatellite(EntityPlayerMP player, PacketCoordinates packet) {
-		final TileGenericPipe pipe = getPipe(player.worldObj, packet.posX, packet.posY, packet.posZ);
-		if (pipe == null) {
-			return;
-		}
-
-		if (!(pipe.pipe.logic instanceof BaseLogicCrafting)) {
-			return;
-		}
-
-		((BaseLogicCrafting) pipe.pipe.logic).setPrevSatellite(player);
-	}
-
-	private static void onCraftingPipeImport(EntityPlayerMP player, PacketCoordinates packet) {
-		final TileGenericPipe pipe = getPipe(player.worldObj, packet.posX, packet.posY, packet.posZ);
-		if (pipe == null) {
-			return;
-		}
-
-		if (!(pipe.pipe.logic instanceof BaseLogicCrafting)) {
-			return;
-		}
-
-		((BaseLogicCrafting) pipe.pipe.logic).importFromCraftingTable(player);
-	}
-
-	private static void onSatellitePipeNext(EntityPlayerMP player, PacketCoordinates packet) {
-		final TileGenericPipe pipe = getPipe(player.worldObj, packet.posX, packet.posY, packet.posZ);
-		if (pipe == null) {
-			return;
-		}
-
-		if (!(pipe.pipe.logic instanceof BaseLogicSatellite)) {
-			return;
-		}
-
-		((BaseLogicSatellite) pipe.pipe.logic).setNextId(player);
-	}
-
-	private static void onSatellitePipePrev(EntityPlayerMP player, PacketCoordinates packet) {
-		final TileGenericPipe pipe = getPipe(player.worldObj, packet.posX, packet.posY, packet.posZ);
-		if (pipe == null) {
-			return;
-		}
-
-		if (!(pipe.pipe.logic instanceof BaseLogicSatellite)) {
-			return;
-		}
-
-		((BaseLogicSatellite) pipe.pipe.logic).setPrevId(player);
 	}
 
 	private static void onModuleGuiOpen(EntityPlayerMP player, PacketPipeInteger packet) {
@@ -494,9 +416,9 @@ public class ServerPacketHandler {
 
 		final PipeLogisticsChassi cassiPipe = (PipeLogisticsChassi) pipe.pipe;
 		
-		if(!(cassiPipe.getLogisticsModule().getSubModule(packet.integer) instanceof ILogisticsGuiModule)) return;
+		if(!(cassiPipe.getLogisticsModule().getSubModule(packet.integer) instanceof LogisticsGuiModule)) return;
 		
-		player.openGui(LogisticsPipes.instance, ((ILogisticsGuiModule)cassiPipe.getLogisticsModule().getSubModule(packet.integer)).getGuiHandlerID()
+		player.openGui(LogisticsPipes.instance, ((LogisticsGuiModule)cassiPipe.getLogisticsModule().getSubModule(packet.integer)).getGuiHandlerID()
 				+ (100 * (packet.integer + 1)), player.worldObj, packet.posX, packet.posY, packet.posZ);
 		if (cassiPipe.getLogisticsModule().getSubModule(packet.integer) instanceof ModuleItemSink) {
 			MainProxy.sendPacketToPlayer(new PacketModuleInteger(NetworkConstants.ITEM_SINK_STATUS, packet.posX, packet.posY, packet.posZ, packet.integer,
@@ -927,7 +849,7 @@ public class ServerPacketHandler {
 		MainProxy.sendPacketToPlayer(new PacketPipeUpdate(NetworkConstants.PIPE_UPDATE,packet.posX,packet.posY,packet.posZ,((CoreRoutedPipe)pipe.pipe).getLogisticsNetworkPacket()).getPacket(), (Player) player);
 		if(pipe.pipe instanceof PipeItemsCraftingLogistics) {
 			if(pipe.pipe.logic instanceof BaseLogicCrafting) {
-				final PacketInventoryChange newpacket = new PacketInventoryChange(NetworkConstants.CRAFTING_PIPE_IMPORT_BACK, pipe.xCoord, pipe.yCoord, pipe.zCoord, ((BaseLogicCrafting)pipe.pipe.logic).getDummyInventory());
+				final CoordinatesPacket newpacket = PacketHandler.getPacket(CPipeSatelliteImportBack.class).setInventory(((BaseLogicCrafting)pipe.pipe.logic).getDummyInventory()).setPosX(pipe.xCoord).setPosY(pipe.yCoord).setPosZ(pipe.zCoord);
 				MainProxy.sendPacketToPlayer(newpacket.getPacket(), (Player)player);
 			}
 		}
@@ -1080,10 +1002,14 @@ public class ServerPacketHandler {
 		if(pipe == null) {
 			return;
 		}
-		
+
 		if(pipe.pipe instanceof PipeItemsLiquidSupplier) {
 			PipeItemsLiquidSupplier liquid = (PipeItemsLiquidSupplier) pipe.pipe;
 			((LogicLiquidSupplier)liquid.logic).setRequestingPartials((packet.integer % 10) == 1);
+		}
+		if(pipe.pipe instanceof PipeLiquidSupplierMk2) {
+			PipeLiquidSupplierMk2 liquid = (PipeLiquidSupplierMk2) pipe.pipe;
+			((LogicLiquidSupplierMk2)liquid.logic).setRequestingPartials((packet.integer % 10) == 1);
 		}
 	}
 
@@ -1522,6 +1448,58 @@ public class ServerPacketHandler {
 		if(tile instanceof LogisticsSecurityTileEntity) {
 			((LogisticsSecurityTileEntity)tile).changeDestroy();
 		}
+	}
+
+	private static void onCraftingPipeNextLiquidSatelliteAdvanced(EntityPlayerMP player, PacketPipeInteger packet) {
+		final TileGenericPipe pipe = getPipe(player.worldObj, packet.posX, packet.posY, packet.posZ);
+		if (pipe == null) {
+			return;
+		}
+
+		if (!(pipe.pipe.logic instanceof BaseLogicCrafting)) {
+			return;
+		}
+
+		((BaseLogicCrafting) pipe.pipe.logic).setNextLiquidSatellite(player, packet.integer);
+	}
+
+	private static void onCraftingPipePrevLiquidSatelliteAdvanced(EntityPlayerMP player, PacketPipeInteger packet) {
+		final TileGenericPipe pipe = getPipe(player.worldObj, packet.posX, packet.posY, packet.posZ);
+		if (pipe == null) {
+			return;
+		}
+
+		if (!(pipe.pipe.logic instanceof BaseLogicCrafting)) {
+			return;
+		}
+
+		((BaseLogicCrafting) pipe.pipe.logic).setPrevLiquidSatellite(player, packet.integer);
+	}
+
+	private static void onCraftingPipeLiquidAmountChange(EntityPlayerMP player, PacketModuleInteger packet) {
+		final TileGenericPipe pipe = getPipe(player.worldObj, packet.posX, packet.posY, packet.posZ);
+		if (pipe == null) {
+			return;
+		}
+
+		if (!(pipe.pipe.logic instanceof BaseLogicCrafting)) {
+			return;
+		}
+
+		((BaseLogicCrafting) pipe.pipe.logic).changeLiquidAmount(packet.integer, packet.slot, player);
+	}
+
+	private static void onLiquidSuppierPipeAmount(EntityPlayerMP player, PacketPipeInteger packet) {
+		final TileGenericPipe pipe = getPipe(player.worldObj, packet.posX, packet.posY, packet.posZ);
+		if (pipe == null) {
+			return;
+		}
+
+		if (!(pipe.pipe.logic instanceof LogicLiquidSupplierMk2)) {
+			return;
+		}
+
+		((LogicLiquidSupplierMk2) pipe.pipe.logic).changeLiquidAmount(packet.integer, player);
 	}
 	
 	// BuildCraft method

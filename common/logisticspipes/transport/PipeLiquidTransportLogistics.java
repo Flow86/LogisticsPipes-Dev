@@ -2,7 +2,7 @@ package logisticspipes.transport;
 
 import java.util.BitSet;
 
-import logisticspipes.network.packets.PacketLiquidUpdate;
+import logisticspipes.network.oldpackets.PacketLiquidUpdate;
 import logisticspipes.pipes.basic.liquid.LogisticsLiquidSection;
 import logisticspipes.proxy.MainProxy;
 import net.minecraft.item.ItemStack;
@@ -13,7 +13,6 @@ import net.minecraftforge.liquids.ITankContainer;
 import net.minecraftforge.liquids.LiquidStack;
 import buildcraft.BuildCraftCore;
 import buildcraft.api.core.SafeTimeTracker;
-import buildcraft.core.DefaultProps;
 import buildcraft.core.utils.Utils;
 
 public class PipeLiquidTransportLogistics extends PipeTransportLogistics implements ITankContainer {
@@ -162,7 +161,7 @@ public class PipeLiquidTransportLogistics extends PipeTransportLogistics impleme
 			if(clientSyncCounter < 0) clientSyncCounter = 0;
 			PacketLiquidUpdate packet = computeLiquidUpdate(init, true);
 			if (packet != null) {
-				MainProxy.sendPacketToAllAround(xCoord, yCoord, zCoord, DefaultProps.PIPE_CONTENTS_RENDER_DIST, MainProxy.getDimensionForWorld(worldObj), packet.getPacket());
+				MainProxy.sendPacketToAllWatchingChunk(xCoord, zCoord, MainProxy.getDimensionForWorld(worldObj), packet.getPacket());
 			}
 		}
 	}

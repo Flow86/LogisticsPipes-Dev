@@ -81,7 +81,7 @@ public class LogisticsTileGenericPipe_CC extends LogisticsTileGenericPipe implem
 			if(!arguments[i].getClass().equals(args)) return false;
 			i++;
 		}
-		return true;
+		return arguments.length == i;
 	}
 	
 	@Override
@@ -102,6 +102,7 @@ public class LogisticsTileGenericPipe_CC extends LogisticsTileGenericPipe implem
 		LinkedList<String> list = new LinkedList<String>();
 		list.add("help");
 		list.add("commandHelp");
+		list.add("getType");
 		for(int i=0;i<commandMap.size();i++) {
 			list.add(commandMap.get(i));
 		}
@@ -231,7 +232,11 @@ public class LogisticsTileGenericPipe_CC extends LogisticsTileGenericPipe implem
 			help.append(method.getAnnotation(CCCommand.class).description());
 			return new Object[]{help.toString()};
 		}
-		
+
+		methodId--;
+		if(methodId == 0) {
+			return CCHelper.createArray(CCHelper.getAnswer(getType()));
+		}
 		methodId--;
 		String name = commandMap.get(methodId);
 		

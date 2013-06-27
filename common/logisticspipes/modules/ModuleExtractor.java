@@ -10,8 +10,7 @@ import logisticspipes.gui.hud.modules.HUDExtractor;
 import logisticspipes.interfaces.IClientInformationProvider;
 import logisticspipes.interfaces.IHUDModuleHandler;
 import logisticspipes.interfaces.IHUDModuleRenderer;
-import logisticspipes.interfaces.ILogisticsGuiModule;
-import logisticspipes.interfaces.ILogisticsModule;
+import logisticspipes.interfaces.IInventoryUtil;
 import logisticspipes.interfaces.IModuleWatchReciver;
 import logisticspipes.interfaces.ISendRoutedItem;
 import logisticspipes.interfaces.ISneakyDirectionReceiver;
@@ -20,16 +19,14 @@ import logisticspipes.interfaces.routing.IFilter;
 import logisticspipes.logisticspipes.IInventoryProvider;
 import logisticspipes.network.GuiIDs;
 import logisticspipes.network.NetworkConstants;
-import logisticspipes.network.packets.PacketModuleInteger;
-import logisticspipes.network.packets.PacketPipeInteger;
+import logisticspipes.network.oldpackets.PacketModuleInteger;
+import logisticspipes.network.oldpackets.PacketPipeInteger;
 import logisticspipes.pipefxhandlers.Particles;
 import logisticspipes.pipes.basic.CoreRoutedPipe.ItemSendMode;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.utils.ItemIdentifier;
 import logisticspipes.utils.Pair3;
-import logisticspipes.utils.SidedInventoryForgeAdapter;
-import logisticspipes.utils.SidedInventoryMinecraftAdapter;
 import logisticspipes.utils.SinkReply;
 import net.minecraft.client.renderer.texture.IconRegister;
 import net.minecraft.entity.player.EntityPlayer;
@@ -42,7 +39,7 @@ import buildcraft.api.inventory.ISpecialInventory;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-public class ModuleExtractor implements ILogisticsGuiModule, ISneakyDirectionReceiver, IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver {
+public class ModuleExtractor extends LogisticsGuiModule implements ISneakyDirectionReceiver, IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver {
 
 	//protected final int ticksToAction = 100;
 	private int currentTick = 0;
@@ -102,7 +99,7 @@ public class ModuleExtractor implements ILogisticsGuiModule, ISneakyDirectionRec
 	}
 
 	@Override
-	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority) {
+	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
 		return null;
 	}
 
@@ -112,7 +109,7 @@ public class ModuleExtractor implements ILogisticsGuiModule, ISneakyDirectionRec
 	}
 
 	@Override
-	public ILogisticsModule getSubModule(int slot) {return null;}
+	public LogisticsModule getSubModule(int slot) {return null;}
 
 	@Override
 	public void readFromNBT(NBTTagCompound nbttagcompound) {
@@ -150,39 +147,36 @@ public class ModuleExtractor implements ILogisticsGuiModule, ISneakyDirectionRec
 		currentTick = 0;
 
 		//Extract Item
-		IInventory targetInventory = _invProvider.getRawInventory();
-		if (targetInventory == null) return;
+		IInventory realInventory = _invProvider.getRealInventory();
+		if (realInventory == null) return;
 		ForgeDirection extractOrientation = _sneakyDirection;
 		if(extractOrientation == ForgeDirection.UNKNOWN) {
 			extractOrientation = _invProvider.inventoryOrientation().getOpposite();
 		}
 
-		if (targetInventory instanceof ISpecialInventory){
-			ItemStack[] stack = ((ISpecialInventory) targetInventory).extractItem(false, extractOrientation, 1);
+		IInventoryUtil targetUtil = _invProvider.getSneakyInventory(extractOrientation,true);
+		
+		if (realInventory instanceof ISpecialInventory && !targetUtil.isSpecialInventory()){
+			ItemStack[] stack = ((ISpecialInventory) realInventory).extractItem(false, extractOrientation, 1);
 			if (stack == null || stack.length < 1 || stack[0] == null || stack[0].stackSize == 0) return;
 			Pair3<Integer, SinkReply, List<IFilter>> reply = _itemSender.hasDestination(ItemIdentifier.get(stack[0]), true, new ArrayList<Integer>());
 			if (reply == null) return;
-			ItemStack[] stacks = ((ISpecialInventory) targetInventory).extractItem(true, extractOrientation, 1);
+			ItemStack[] stacks = ((ISpecialInventory) realInventory).extractItem(true, extractOrientation, 1);
 			if (stacks == null || stacks.length < 1 || stacks[0] == null || stacks[0].stackSize == 0) {
-				LogisticsPipes.log.info("extractor extractItem(true) got nothing from " + ((Object)targetInventory).toString());
+				LogisticsPipes.log.info("extractor extractItem(true) got nothing from " + ((Object)realInventory).toString());
 				return;
 			}
 			if(!ItemStack.areItemStacksEqual(stack[0], stacks[0])) {
-				LogisticsPipes.log.info("extractor extract got a unexpected item from " + ((Object)targetInventory).toString());
+				LogisticsPipes.log.info("extractor extract got a unexpected item from " + ((Object)realInventory).toString());
 			}
 			_itemSender.sendStack(stacks[0], reply, itemSendMode());
 			return;
 		}
 
-		if (targetInventory instanceof net.minecraft.inventory.ISidedInventory){
-			targetInventory = new SidedInventoryMinecraftAdapter((net.minecraft.inventory.ISidedInventory) targetInventory, extractOrientation);
-		}
-		if (targetInventory instanceof net.minecraftforge.common.ISidedInventory){
-			targetInventory = new SidedInventoryForgeAdapter((net.minecraftforge.common.ISidedInventory) targetInventory, extractOrientation);
-		}
-
-		for (int i = 0; i < targetInventory.getSizeInventory(); i++){
-			ItemStack slot = targetInventory.getStackInSlot(i);
+		
+		for (int i = 0; i < targetUtil.getSizeInventory(); i++){
+			
+			ItemStack slot = targetUtil.getStackInSlot(i);
 			if (slot == null) continue;
 
 			List<Integer> jamList = new LinkedList<Integer>();
@@ -205,12 +199,12 @@ public class ModuleExtractor implements ILogisticsGuiModule, ISneakyDirectionRec
 					break;
 				}
 
-				ItemStack stackToSend = targetInventory.decrStackSize(i, count);
+				ItemStack stackToSend = targetUtil.decrStackSize(i, count);
 				_itemSender.sendStack(stackToSend, reply, itemSendMode());
 				itemsleft -= count;
 				if(itemsleft <= 0) break;
 				if(!SimpleServiceLocator.buildCraftProxy.checkMaxItems()) break;
-				slot = targetInventory.getStackInSlot(i);
+				slot = targetUtil.getStackInSlot(i);
 				if (slot == null) break;
 				jamList.add(reply.getValue1());
 				reply = _itemSender.hasDestination(ItemIdentifier.get(slot), true, jamList);
@@ -242,7 +236,7 @@ public class ModuleExtractor implements ILogisticsGuiModule, ISneakyDirectionRec
 	@Override 
 	public final int getY() {
 		if(slot>=0)
-			return this._invProvider.getX();
+			return this._invProvider.getY();
 		else 
 			return -1;
 	}
@@ -250,7 +244,7 @@ public class ModuleExtractor implements ILogisticsGuiModule, ISneakyDirectionRec
 	@Override 
 	public final int getZ() {
 		if(slot>=0)
-			return this._invProvider.getX();
+			return this._invProvider.getZ();
 		else 
 			return -1-slot;
 	}

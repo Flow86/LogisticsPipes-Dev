@@ -2,16 +2,16 @@ package logisticspipes.pipes;
 
 import java.util.UUID;
 
-import logisticspipes.interfaces.ILogisticsModule;
 import logisticspipes.logic.DestinationLogic;
+import logisticspipes.modules.LogisticsModule;
 import logisticspipes.pipefxhandlers.Particles;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.textures.Textures;
 import logisticspipes.textures.Textures.TextureType;
+import logisticspipes.utils.SimpleInventory;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.nbt.NBTTagCompound;
-import buildcraft.core.utils.SimpleInventory;
 
 public class PipeItemsSystemDestinationLogistics extends CoreRoutedPipe {
 
@@ -32,7 +32,7 @@ public class PipeItemsSystemDestinationLogistics extends CoreRoutedPipe {
 	}
 
 	@Override
-	public ILogisticsModule getLogisticsModule() {
+	public LogisticsModule getLogisticsModule() {
 		return null;
 	}
 

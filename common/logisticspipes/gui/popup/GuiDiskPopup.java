@@ -2,9 +2,9 @@ package logisticspipes.gui.popup;
 
 import logisticspipes.gui.orderer.NormalMk2GuiOrderer;
 import logisticspipes.network.NetworkConstants;
-import logisticspipes.network.packets.PacketItem;
-import logisticspipes.network.packets.PacketPipeInteger;
-import logisticspipes.network.packets.PacketPipeString;
+import logisticspipes.network.oldpackets.PacketItem;
+import logisticspipes.network.oldpackets.PacketPipeInteger;
+import logisticspipes.network.oldpackets.PacketPipeString;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.utils.gui.BasicGuiHelper;
 import logisticspipes.utils.gui.KraphtBaseGuiScreen.Colors;

@@ -3,8 +3,6 @@ package logisticspipes.modules;
 import java.util.List;
 
 import logisticspipes.api.IRoutedPowerProvider;
-import logisticspipes.interfaces.ILogisticsGuiModule;
-import logisticspipes.interfaces.ILogisticsModule;
 import logisticspipes.interfaces.ISendRoutedItem;
 import logisticspipes.interfaces.IWorldProvider;
 import logisticspipes.logisticspipes.IInventoryProvider;
@@ -21,7 +19,7 @@ import net.minecraft.util.Icon;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-public class ModuleApiaristSink implements ILogisticsGuiModule, INBTPacketProvider {
+public class ModuleApiaristSink extends LogisticsGuiModule implements INBTPacketProvider {
 
 	public enum FilterType {
 		Null("","anything",0),
@@ -190,6 +188,7 @@ public class ModuleApiaristSink implements ILogisticsGuiModule, INBTPacketProvid
 	public SinkSetting[] filter = new SinkSetting[6];
 	public IWorldProvider worldProvider;
 	private IRoutedPowerProvider _power;
+	private int slot;
 	
 	public ModuleApiaristSink() {
 		filter[0] = new SinkSetting(this);
@@ -260,7 +259,7 @@ public class ModuleApiaristSink implements ILogisticsGuiModule, INBTPacketProvid
 	
 	private static final SinkReply _sinkReply = new SinkReply(FixedPriority.APIARIST_BeeSink, 0, true, false, 2, 0);
 	@Override
-	public SinkReply sinksItem(ItemIdentifier itemID, int bestPriority, int bestCustomPriority) {
+	public SinkReply sinksItem(ItemIdentifier itemID, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
 		if(bestPriority > _sinkReply.fixedPriority.ordinal() || (bestPriority == _sinkReply.fixedPriority.ordinal() && bestCustomPriority >= _sinkReply.customPriority)) return null;
 		ItemStack item = itemID.makeNormalStack(1);
 		if(SimpleServiceLocator.forestryProxy.isBee(item)) {
@@ -276,7 +275,7 @@ public class ModuleApiaristSink implements ILogisticsGuiModule, INBTPacketProvid
 	}
 
 	@Override
-	public ILogisticsModule getSubModule(int slot) {
+	public LogisticsModule getSubModule(int slot) {
 		return null;
 	}
 
@@ -292,24 +291,34 @@ public class ModuleApiaristSink implements ILogisticsGuiModule, INBTPacketProvid
 	public void writeToPacketNBT(NBTTagCompound tag) {
 		writeToNBT(tag);
 	}
-
-
+	
+	
 	@Override 
 	public void registerSlot(int slot) {
+		this.slot = slot;
 	}
 	
 	@Override 
 	public final int getX() {
-		return this._power.getX();
+		if(slot>=0)
+			return this._power.getX();
+		else 
+			return 0;
 	}
 	@Override 
 	public final int getY() {
-		return this._power.getX();
+		if(slot>=0)
+			return this._power.getY();
+		else 
+			return -1;
 	}
 	
 	@Override 
 	public final int getZ() {
-		return this._power.getX();
+		if(slot>=0)
+			return this._power.getZ();
+		else 
+			return -1-slot;
 	}
 
 	@Override

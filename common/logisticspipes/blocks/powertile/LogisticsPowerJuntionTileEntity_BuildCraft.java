@@ -3,6 +3,7 @@ package logisticspipes.blocks.powertile;
 import java.util.ArrayList;
 import java.util.List;
 
+import logisticspipes.LogisticsPipes;
 import logisticspipes.api.ILogisticsPowerProvider;
 import logisticspipes.config.Configs;
 import logisticspipes.gui.hud.HUDPowerJunction;
@@ -11,11 +12,12 @@ import logisticspipes.interfaces.IGuiOpenControler;
 import logisticspipes.interfaces.IHeadUpDisplayBlockRendererProvider;
 import logisticspipes.interfaces.IHeadUpDisplayRenderer;
 import logisticspipes.network.NetworkConstants;
-import logisticspipes.network.packets.PacketCoordinates;
-import logisticspipes.network.packets.PacketPipeInteger;
+import logisticspipes.network.oldpackets.PacketCoordinates;
+import logisticspipes.network.oldpackets.PacketPipeInteger;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.renderer.LogisticsHUDRenderer;
 import logisticspipes.utils.gui.DummyContainer;
+import net.minecraft.crash.CrashReportCategory;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.Container;
 import net.minecraft.nbt.NBTTagCompound;
@@ -25,8 +27,6 @@ import net.minecraftforge.common.ForgeDirection;
 import buildcraft.api.power.IPowerProvider;
 import buildcraft.api.power.IPowerReceptor;
 import buildcraft.api.power.PowerFramework;
-
-
 
 public class LogisticsPowerJuntionTileEntity_BuildCraft extends TileEntity implements IPowerReceptor, ILogisticsPowerProvider, IGuiOpenControler, IHeadUpDisplayBlockRendererProvider, IBlockWatchingHandler {
 	
@@ -262,5 +262,11 @@ public class LogisticsPowerJuntionTileEntity_BuildCraft extends TileEntity imple
 	@Override
 	public boolean isExistend() {
 		return worldObj.getBlockTileEntity(xCoord, yCoord, zCoord) == this;
+	}
+	
+	@Override
+	public void func_85027_a(CrashReportCategory par1CrashReportCategory) {
+		super.func_85027_a(par1CrashReportCategory);
+		par1CrashReportCategory.addCrashSection("LP-Version", LogisticsPipes.VERSION);
 	}
 }

@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import logisticspipes.api.IRoutedPowerProvider;
-import logisticspipes.interfaces.ILogisticsModule;
 import logisticspipes.interfaces.ISendRoutedItem;
 import logisticspipes.interfaces.IWorldProvider;
 import logisticspipes.interfaces.routing.IFilter;
@@ -26,7 +25,7 @@ import buildcraft.api.inventory.ISpecialInventory;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-public class ModuleApiaristRefiller implements ILogisticsModule {
+public class ModuleApiaristRefiller extends LogisticsModule {
 
 	private IInventoryProvider _invProvider;
 	private IRoutedPowerProvider _power;
@@ -49,12 +48,12 @@ public class ModuleApiaristRefiller implements ILogisticsModule {
 	}
 
 	@Override
-	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority) {
+	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
 		return null;
 	}
 
 	@Override
-	public ILogisticsModule getSubModule(int slot) {
+	public LogisticsModule getSubModule(int slot) {
 		return null;
 	}
 
@@ -75,12 +74,12 @@ public class ModuleApiaristRefiller implements ILogisticsModule {
 	}
 	@Override 
 	public final int getY() {
-		return this._invProvider.getX();
+		return this._invProvider.getY();
 	}
 	
 	@Override 
 	public final int getZ() {
-		return this._invProvider.getX();
+		return this._invProvider.getZ();
 	}
 
 
@@ -88,13 +87,15 @@ public class ModuleApiaristRefiller implements ILogisticsModule {
 	public void tick() {
 		if (++currentTickCount < ticksToOperation) return;
 		currentTickCount = 0;
-		IInventory inv = _invProvider.getRawInventory();
+		IInventory inv = _invProvider.getRealInventory();
 		if (!(inv instanceof ISpecialInventory)) return;
 		ISpecialInventory sinv = (ISpecialInventory) inv;
 		ForgeDirection direction = _invProvider.inventoryOrientation().getOpposite();
 		ItemStack[] stack = sinv.extractItem(false, direction, 1);
 		if (stack == null || stack.length < 1 || stack[0] == null) return;
 		if (!(_power.canUseEnergy(100))) return;
+		
+		currentTickCount = ticksToOperation;
 
 		if(reinsertBee(stack[0], sinv, direction))
 			return;

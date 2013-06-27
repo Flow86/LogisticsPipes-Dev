@@ -6,14 +6,18 @@ import java.util.Map;
 import logisticspipes.LogisticsPipes;
 import logisticspipes.blocks.LogisticsSecurityTileEntity;
 import logisticspipes.blocks.LogisticsSolderingTileEntity;
+import logisticspipes.blocks.crafting.LogisticsCraftingTableTileEntity;
 import logisticspipes.blocks.powertile.LogisticsPowerJuntionTileEntity_BuildCraft;
+import logisticspipes.gui.GuiCardManager;
 import logisticspipes.gui.GuiChassiPipe;
 import logisticspipes.gui.GuiCraftingPipe;
 import logisticspipes.gui.GuiFirewall;
 import logisticspipes.gui.GuiFreqCardContent;
 import logisticspipes.gui.GuiInvSysConnector;
 import logisticspipes.gui.GuiLiquidBasic;
+import logisticspipes.gui.GuiLiquidSupplierMk2Pipe;
 import logisticspipes.gui.GuiLiquidSupplierPipe;
+import logisticspipes.gui.GuiLogisticsCraftingTable;
 import logisticspipes.gui.GuiPowerJunction;
 import logisticspipes.gui.GuiProviderPipe;
 import logisticspipes.gui.GuiRoutingStats;
@@ -40,18 +44,20 @@ import logisticspipes.gui.orderer.LiquidGuiOrderer;
 import logisticspipes.gui.orderer.NormalGuiOrderer;
 import logisticspipes.gui.orderer.NormalMk2GuiOrderer;
 import logisticspipes.interfaces.IGuiOpenControler;
-import logisticspipes.interfaces.ILogisticsModule;
 import logisticspipes.interfaces.ISlotCheck;
 import logisticspipes.interfaces.ISneakyDirectionReceiver;
 import logisticspipes.interfaces.IWorldProvider;
 import logisticspipes.items.LogisticsItemCard;
 import logisticspipes.logic.BaseLogicCrafting;
+import logisticspipes.logic.BaseLogicLiquidSatellite;
 import logisticspipes.logic.BaseLogicSatellite;
 import logisticspipes.logic.BaseRoutingLogic;
 import logisticspipes.logic.LogicLiquidSupplier;
+import logisticspipes.logic.LogicLiquidSupplierMk2;
 import logisticspipes.logic.LogicProvider;
 import logisticspipes.logic.LogicSupplier;
 import logisticspipes.logisticspipes.ItemModuleInformationManager;
+import logisticspipes.modules.LogisticsModule;
 import logisticspipes.modules.ModuleAdvancedExtractor;
 import logisticspipes.modules.ModuleApiaristAnalyser;
 import logisticspipes.modules.ModuleApiaristSink;
@@ -63,9 +69,9 @@ import logisticspipes.modules.ModulePassiveSupplier;
 import logisticspipes.modules.ModuleProvider;
 import logisticspipes.modules.ModuleTerminus;
 import logisticspipes.modules.ModuleThaumicAspectSink;
-import logisticspipes.network.packets.PacketModuleInteger;
-import logisticspipes.network.packets.PacketModuleNBT;
-import logisticspipes.network.packets.PacketPipeInteger;
+import logisticspipes.network.oldpackets.PacketModuleInteger;
+import logisticspipes.network.oldpackets.PacketModuleNBT;
+import logisticspipes.network.oldpackets.PacketPipeInteger;
 import logisticspipes.pipes.PipeItemsFirewall;
 import logisticspipes.pipes.PipeItemsInvSysConnector;
 import logisticspipes.pipes.PipeItemsRequestLogisticsMk2;
@@ -76,6 +82,8 @@ import logisticspipes.pipes.PipeLiquidRequestLogistics;
 import logisticspipes.pipes.PipeLogisticsChassi;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.MainProxy;
+import logisticspipes.utils.CardManagmentInventory;
+import logisticspipes.utils.SimpleInventory;
 import logisticspipes.utils.gui.DummyContainer;
 import logisticspipes.utils.gui.DummyModuleContainer;
 import net.minecraft.client.gui.GuiScreen;
@@ -83,10 +91,8 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.src.ModLoader;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
-import buildcraft.core.utils.SimpleInventory;
 import buildcraft.transport.TileGenericPipe;
 import cpw.mods.fml.client.FMLClientHandler;
 import cpw.mods.fml.common.network.IGuiHandler;
@@ -137,8 +143,18 @@ public class GuiHandler implements IGuiHandler {
 		        
 		        //Output slot
 		        dummy.addDummySlot(9, 90, 64);
+		        
+		        for(int i=0;i<((CoreRoutedPipe)pipe.pipe).getUpgradeManager().getLiquidCrafter();i++) {
+					int liquidLeft = -(i*40) - 40;
+					dummy.addLiquidSlot(i, ((BaseLogicCrafting)pipe.pipe.logic).getLiquidInventory(), liquidLeft + 13, 42);
+				}
+
+		        if(((CoreRoutedPipe)pipe.pipe).getUpgradeManager().hasByproductExtractor()) {
+		        	dummy.addDummySlot(10, 197, 104);
+		        }
+		        
 				return dummy;
-			
+
 			case GuiIDs.GUI_LiquidSupplier_ID:
 				if(pipe == null || pipe.pipe == null || !(pipe.pipe.logic instanceof LogicLiquidSupplier)) return null;
 				dummy = new DummyContainer(player.inventory, ((LogicLiquidSupplier)pipe.pipe.logic).getDummyInventory());
@@ -154,6 +170,15 @@ public class GuiHandler implements IGuiHandler {
 				}
 				
 				MainProxy.sendPacketToPlayer(new PacketPipeInteger(NetworkConstants.LIQUID_SUPPLIER_PARTIALS, pipe.xCoord, pipe.yCoord, pipe.zCoord, (((LogicLiquidSupplier)pipe.pipe.logic).isRequestingPartials() ? 1 : 0)).getPacket(), (Player)player);
+			    return dummy;
+
+			case GuiIDs.GUI_LiquidSupplier_MK2_ID:
+				if(pipe == null || pipe.pipe == null || !(pipe.pipe.logic instanceof LogicLiquidSupplierMk2)) return null;
+				dummy = new DummyContainer(player.inventory, ((LogicLiquidSupplierMk2)pipe.pipe.logic).getDummyInventory());
+				dummy.addNormalSlotsForPlayerInventory(18, 97);
+				dummy.addLiquidSlot(0, ((LogicLiquidSupplierMk2)pipe.pipe.logic).getDummyInventory(), 0, 0);
+				
+				MainProxy.sendPacketToPlayer(new PacketPipeInteger(NetworkConstants.LIQUID_SUPPLIER_PARTIALS, pipe.xCoord, pipe.yCoord, pipe.zCoord, (((LogicLiquidSupplierMk2)pipe.pipe.logic).isRequestingPartials() ? 1 : 0)).getPacket(), (Player)player);
 			    return dummy;
 				
 			case GuiIDs.GUI_ProviderPipe_ID:
@@ -172,8 +197,12 @@ public class GuiHandler implements IGuiHandler {
 				return dummy;
 				
 			case GuiIDs.GUI_SatelitePipe_ID:
-				if(pipe == null || pipe.pipe == null || !(pipe.pipe.logic instanceof BaseLogicSatellite)) return null;
-				return new DummyContainer(player.inventory, null);
+				if(pipe != null && pipe.pipe != null && pipe.pipe.logic instanceof BaseLogicSatellite) {
+					return new DummyContainer(player.inventory, null);
+				}
+				if(pipe != null && pipe.pipe != null && pipe.pipe.logic instanceof BaseLogicLiquidSatellite) {
+					return new DummyContainer(player.inventory, null);
+				}
 				
 			case GuiIDs.GUI_SupplierPipe_ID:
 				if(pipe == null || pipe.pipe == null || !(pipe.pipe.logic instanceof LogicSupplier)) return null;
@@ -318,7 +347,29 @@ public class GuiHandler implements IGuiHandler {
 						((CoreRoutedPipe)fpipe.pipe).playerStopWatching(player, 0);
 					}
 				});
-				
+			
+			case GuiIDs.GUI_Item_Manager:
+				final CardManagmentInventory Cinv = new CardManagmentInventory();
+				dummy = new DummyContainer(player, Cinv, new IGuiOpenControler() {
+					@Override public void guiOpenedByPlayer(EntityPlayer player) {}
+					@Override
+					public void guiClosedByPlayer(EntityPlayer player) {
+						Cinv.close(player);
+					}
+				});
+				for(int i=0;i<2;i++) {
+					dummy.addRestrictedSlot(i, Cinv, 0, 0, LogisticsPipes.ModuleItem.itemID);
+				}
+				dummy.addRestrictedSlot(2, Cinv, 0, 0, new ISlotCheck() {
+					@Override public boolean isStackAllowed(ItemStack itemStack) {return false;}
+				});
+				dummy.addRestrictedSlot(3, Cinv, 0, 0, LogisticsPipes.LogisticsItemCard.itemID);
+				for(int i=4;i<10;i++) {
+					dummy.addColorSlot(i, Cinv, 0, 0);
+				}
+				dummy.addNormalSlotsForPlayerInventory(0, 0);
+				return dummy;
+			
 			case GuiIDs.GUI_Normal_Orderer_ID:
 				if(pipe == null || pipe.pipe == null || !(pipe.pipe.logic instanceof BaseRoutingLogic)) return null;
 				return new DummyContainer(player.inventory, null);
@@ -421,6 +472,24 @@ public class GuiHandler implements IGuiHandler {
 				if(pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule() instanceof ModuleApiaristAnalyser)) return null;
 				MainProxy.sendPacketToPlayer(new PacketModuleInteger(NetworkConstants.APIRARIST_ANALYZER_EXTRACTMODE, pipe.xCoord, pipe.yCoord, pipe.zCoord, 0, ((ModuleApiaristAnalyser)((CoreRoutedPipe)pipe.pipe).getLogisticsModule()).getExtractMode()).getPacket(), (Player)player);
 				return new DummyContainer(player.inventory, null);
+				
+			case GuiIDs.GUI_Auto_Crafting_ID:
+				if(!(tile instanceof LogisticsCraftingTableTileEntity)) return null;
+				dummy = new DummyContainer(player.inventory, ((LogisticsCraftingTableTileEntity)tile).matrix);
+
+				for(int X=0;X<3;X++) {
+					for(int Y=0;Y<3;Y++) {
+						dummy.addDummySlot(Y*3 + X, 35 + X*18, 10 + Y*18);
+					}
+				}
+				dummy.addUnmodifiableSlot(0, ((LogisticsCraftingTableTileEntity)tile).resultInv, 125, 28);
+				for(int X=0;X<9;X++) {
+					for(int Y=0;Y<2;Y++) {
+						dummy.addNormalSlot(Y*9 + X, ((LogisticsCraftingTableTileEntity)tile).inv, 8 + X*18, 80 + Y*18);
+					}
+				}
+				dummy.addNormalSlotsForPlayerInventory(8, 135);
+				return dummy;
 				
 			default:break;
 			}
@@ -648,8 +717,8 @@ public class GuiHandler implements IGuiHandler {
 		
 		if(ID > 10000) {
 			ID -= 10000;
-			if(ModLoader.getMinecraftInstance().currentScreen instanceof GuiWithPreviousGuiContainer) {
-				GuiScreen prev = ((GuiWithPreviousGuiContainer)ModLoader.getMinecraftInstance().currentScreen).getprevGui();
+			if(FMLClientHandler.instance().getClient().currentScreen instanceof GuiWithPreviousGuiContainer) {
+				GuiScreen prev = ((GuiWithPreviousGuiContainer)FMLClientHandler.instance().getClient().currentScreen).getprevGui();
 				if(prev != null) {
 					if(prev.getClass().equals(getClientGuiElement(ID,player,world,x,y,z).getClass())) {
 						return prev;
@@ -658,7 +727,7 @@ public class GuiHandler implements IGuiHandler {
 			}
 		}
 		
-		Object[] args = argumentQueue.get(GuiIDs.GUI_CRAFTINGPIPE_ID);
+		Object[] args = argumentQueue.get(ID);
 		
 		if(ID < 120 && ID > 0) {
 			switch(ID) {
@@ -669,19 +738,28 @@ public class GuiHandler implements IGuiHandler {
 					new UnsupportedOperationException("Arguments missing").printStackTrace();
 					return null;
 				}
-				return new GuiCraftingPipe(player, ((BaseLogicCrafting)pipe.pipe.logic).getDummyInventory(), (BaseLogicCrafting)pipe.pipe.logic, (Boolean) args[0]);
+				return new GuiCraftingPipe(player, ((BaseLogicCrafting)pipe.pipe.logic).getDummyInventory(), (BaseLogicCrafting)pipe.pipe.logic, (Boolean) args[0], (Integer) args[1], (int[]) args[2], (Boolean) args[3]);
 			
 			case GuiIDs.GUI_LiquidSupplier_ID:
 				if(pipe == null || pipe.pipe == null || !(pipe.pipe.logic instanceof LogicLiquidSupplier)) return null;
 				return new GuiLiquidSupplierPipe(player.inventory, ((LogicLiquidSupplier)pipe.pipe.logic).getDummyInventory(), (LogicLiquidSupplier)pipe.pipe.logic);
+			
+			case GuiIDs.GUI_LiquidSupplier_MK2_ID:
+				if(pipe == null || pipe.pipe == null || !(pipe.pipe.logic instanceof LogicLiquidSupplierMk2)) return null;
+				return new GuiLiquidSupplierMk2Pipe(player.inventory, ((LogicLiquidSupplierMk2)pipe.pipe.logic).getDummyInventory(), (LogicLiquidSupplierMk2)pipe.pipe.logic);
 				
 			case GuiIDs.GUI_ProviderPipe_ID:
 				if(pipe == null || pipe.pipe == null || !(pipe.pipe.logic instanceof LogicProvider)) return null;
 				return new GuiProviderPipe(player.inventory, ((LogicProvider)pipe.pipe.logic).getDummyInventory(), (LogicProvider)pipe.pipe.logic);
 			
 			case GuiIDs.GUI_SatelitePipe_ID:
-				if(pipe == null || pipe.pipe == null || !(pipe.pipe.logic instanceof BaseLogicSatellite)) return null;
-				return new GuiSatellitePipe((BaseLogicSatellite)pipe.pipe.logic, player);
+				if(pipe != null && pipe.pipe != null && pipe.pipe.logic instanceof BaseLogicSatellite) {
+					return new GuiSatellitePipe((BaseLogicSatellite)pipe.pipe.logic, player);
+				}
+				if(pipe != null && pipe.pipe != null && pipe.pipe.logic instanceof BaseLogicLiquidSatellite) {
+					return new GuiSatellitePipe((BaseLogicLiquidSatellite)pipe.pipe.logic, player);
+				}
+				return null;
 				
 			case GuiIDs.GUI_SupplierPipe_ID:
 				if(pipe == null || pipe.pipe == null || !(pipe.pipe.logic instanceof LogicSupplier)) return null;
@@ -690,27 +768,27 @@ public class GuiHandler implements IGuiHandler {
 				/*** Modules ***/
 			case GuiIDs.GUI_Module_Extractor_ID:
 				if(pipe == null || pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule() instanceof ISneakyDirectionReceiver)) return null;
-				return new GuiExtractor(player.inventory, pipe.pipe, (ISneakyDirectionReceiver) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule(), ModLoader.getMinecraftInstance().currentScreen, 0);
+				return new GuiExtractor(player.inventory, pipe.pipe, (ISneakyDirectionReceiver) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule(), FMLClientHandler.instance().getClient().currentScreen, 0);
 				
 			case GuiIDs.GUI_Module_ItemSink_ID:
 				if(pipe == null || pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule() instanceof ModuleItemSink)) return null;
-				return new GuiItemSink(player.inventory, pipe.pipe, (ModuleItemSink) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule(), ModLoader.getMinecraftInstance().currentScreen, 0);
+				return new GuiItemSink(player.inventory, pipe.pipe, (ModuleItemSink) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule(), FMLClientHandler.instance().getClient().currentScreen, 0);
 				
 			case GuiIDs.GUI_Module_LiquidSupplier_ID:
 				if(pipe == null || pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule() instanceof ModuleLiquidSupplier)) return null;
-				return new GuiLiquidSupplier(player.inventory, pipe.pipe, (ModuleLiquidSupplier) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule(), ModLoader.getMinecraftInstance().currentScreen);
+				return new GuiLiquidSupplier(player.inventory, pipe.pipe, (ModuleLiquidSupplier) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule(), FMLClientHandler.instance().getClient().currentScreen);
 				
 			case GuiIDs.GUI_Module_PassiveSupplier_ID:
 				if(pipe == null || pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule() instanceof ModulePassiveSupplier)) return null;
-				return new GuiPassiveSupplier(player.inventory, pipe.pipe, (ModulePassiveSupplier) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule(), ModLoader.getMinecraftInstance().currentScreen);
+				return new GuiPassiveSupplier(player.inventory, pipe.pipe, (ModulePassiveSupplier) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule(), FMLClientHandler.instance().getClient().currentScreen);
 				
 			case GuiIDs.GUI_Module_Provider_ID:
 				if(pipe == null || pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule() instanceof ModuleProvider)) return null;
-				return new GuiProvider(player.inventory, pipe.pipe, (ModuleProvider) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule(), ModLoader.getMinecraftInstance().currentScreen, 0);
+				return new GuiProvider(player.inventory, pipe.pipe, (ModuleProvider) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule(), FMLClientHandler.instance().getClient().currentScreen, 0);
 				
 			case GuiIDs.GUI_Module_Terminus_ID:
 				if(pipe == null || pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule() instanceof ModuleTerminus)) return null;
-				return new GuiTerminus(player.inventory, pipe.pipe, (ModuleTerminus) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule(), ModLoader.getMinecraftInstance().currentScreen);
+				return new GuiTerminus(player.inventory, pipe.pipe, (ModuleTerminus) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule(), FMLClientHandler.instance().getClient().currentScreen);
 				
 			case GuiIDs.GUI_ChassiModule_ID:
 				if(pipe == null || pipe.pipe == null || !(pipe.pipe instanceof PipeLogisticsChassi)) return null;
@@ -718,16 +796,19 @@ public class GuiHandler implements IGuiHandler {
 
 			case GuiIDs.GUI_Module_Advanced_Extractor_ID:
 				if(pipe == null || pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule() instanceof ModuleAdvancedExtractor)) return null;
-				return new GuiAdvancedExtractor(player.inventory, pipe.pipe, (ModuleAdvancedExtractor) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule(), ModLoader.getMinecraftInstance().currentScreen, 0);
+				return new GuiAdvancedExtractor(player.inventory, pipe.pipe, (ModuleAdvancedExtractor) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule(), FMLClientHandler.instance().getClient().currentScreen, 0);
 
 			case GuiIDs.GUI_Module_ElectricManager_ID:
 				if(pipe == null || pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule() instanceof ModuleElectricManager)) return null;
-				return new GuiElectricManager(player.inventory, pipe.pipe, (ModuleElectricManager) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule(), ModLoader.getMinecraftInstance().currentScreen, 0);				
+				return new GuiElectricManager(player.inventory, pipe.pipe, (ModuleElectricManager) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule(), FMLClientHandler.instance().getClient().currentScreen, 0);				
 				
 			case GuiIDs.GUI_RoutingStats_ID:
 				if(pipe.pipe == null || !(pipe.pipe.logic instanceof BaseRoutingLogic)) return null;
 				return new GuiRoutingStats(((BaseRoutingLogic)pipe.pipe.logic).getRoutedPipe().getRouter(), player);
-
+			
+			case GuiIDs.GUI_Item_Manager:
+				return new GuiCardManager(player);
+				
 			case GuiIDs.GUI_Normal_Orderer_ID:
 				return new NormalGuiOrderer(x, y, z, MainProxy.getDimensionForWorld(world), player);
 				
@@ -741,7 +822,7 @@ public class GuiHandler implements IGuiHandler {
 				
 			case GuiIDs.GUI_Module_Apiarist_Sink_ID:
 				if(pipe == null || pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule() instanceof ModuleApiaristSink)) return null;
-				return new GuiApiaristSink((ModuleApiaristSink)((CoreRoutedPipe)pipe.pipe).getLogisticsModule(), player, pipe.pipe, ModLoader.getMinecraftInstance().currentScreen, 0);
+				return new GuiApiaristSink((ModuleApiaristSink)((CoreRoutedPipe)pipe.pipe).getLogisticsModule(), player, pipe.pipe, FMLClientHandler.instance().getClient().currentScreen, 0);
 			
 			case GuiIDs.GUI_Inv_Sys_Connector_ID:
 				if(pipe == null || pipe.pipe == null || !(pipe.pipe instanceof PipeItemsInvSysConnector)) return null;
@@ -788,7 +869,11 @@ public class GuiHandler implements IGuiHandler {
 			case GuiIDs.GUI_Module_Apiarist_Analyzer:
 				if(pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule() instanceof ModuleApiaristAnalyser)) return null;
 				return new GuiApiaristAnalyser((ModuleApiaristAnalyser)((CoreRoutedPipe)pipe.pipe).getLogisticsModule(), pipe.pipe, FMLClientHandler.instance().getClient().currentScreen, player.inventory);
-				
+			
+			case GuiIDs.GUI_Auto_Crafting_ID:
+				if(!(tile instanceof LogisticsCraftingTableTileEntity)) return null;
+				return new GuiLogisticsCraftingTable(player, (LogisticsCraftingTableTileEntity)tile);
+	
 			default:break;
 			}
 		} else {
@@ -801,11 +886,11 @@ public class GuiHandler implements IGuiHandler {
 			case GuiIDs.GUI_Module_Extractor_ID:
 				if(slot >= 0) {
 					if(pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot) instanceof ISneakyDirectionReceiver)) return null;
-					return new GuiExtractor(player.inventory, pipe.pipe, (ISneakyDirectionReceiver) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), ModLoader.getMinecraftInstance().currentScreen, slot + 1);
+					return new GuiExtractor(player.inventory, pipe.pipe, (ISneakyDirectionReceiver) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), FMLClientHandler.instance().getClient().currentScreen, slot + 1);
 				} else {
 					ItemStack item = player.inventory.mainInventory[z];
 					if(item == null) return null;
-					ILogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, null, null);
+					LogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, null, null);
 					module.registerSlot(-1-z);
 					ItemModuleInformationManager.readInformation(item, module);
 					if(!(module instanceof ISneakyDirectionReceiver)) return null;
@@ -815,11 +900,11 @@ public class GuiHandler implements IGuiHandler {
 			case GuiIDs.GUI_Module_ItemSink_ID:
 				if(slot >= 0) {
 					if(pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot) instanceof ModuleItemSink)) return null;
-					return new GuiItemSink(player.inventory, pipe.pipe, (ModuleItemSink) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), ModLoader.getMinecraftInstance().currentScreen, slot + 1);
+					return new GuiItemSink(player.inventory, pipe.pipe, (ModuleItemSink) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), FMLClientHandler.instance().getClient().currentScreen, slot + 1);
 				} else {
 					ItemStack item = player.inventory.mainInventory[z];
 					if(item == null) return null;
-					ILogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, null, null);
+					LogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, null, null);
 					module.registerSlot(-1-z);
 					ItemModuleInformationManager.readInformation(item, module);
 					if(!(module instanceof ModuleItemSink)) return null;
@@ -828,16 +913,16 @@ public class GuiHandler implements IGuiHandler {
 				
 			case GuiIDs.GUI_Module_LiquidSupplier_ID:
 				if(pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot) instanceof ModuleLiquidSupplier)) return null;
-				return new GuiLiquidSupplier(player.inventory, pipe.pipe, (ModuleLiquidSupplier) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), ModLoader.getMinecraftInstance().currentScreen);
+				return new GuiLiquidSupplier(player.inventory, pipe.pipe, (ModuleLiquidSupplier) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), FMLClientHandler.instance().getClient().currentScreen);
 				
 			case GuiIDs.GUI_Module_PassiveSupplier_ID:
 				if(slot >= 0) {
 					if(pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot) instanceof ModulePassiveSupplier)) return null;
-					return new GuiPassiveSupplier(player.inventory, pipe.pipe, (ModulePassiveSupplier) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), ModLoader.getMinecraftInstance().currentScreen);
+					return new GuiPassiveSupplier(player.inventory, pipe.pipe, (ModulePassiveSupplier) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), FMLClientHandler.instance().getClient().currentScreen);
 				} else {
 					ItemStack item = player.inventory.mainInventory[z];
 					if(item == null) return null;
-					ILogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, null, null);
+					LogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, null, null);
 					module.registerSlot(-1-z);
 					ItemModuleInformationManager.readInformation(item, module);
 					if(!(module instanceof ModulePassiveSupplier)) return null;
@@ -847,11 +932,11 @@ public class GuiHandler implements IGuiHandler {
 			case GuiIDs.GUI_Module_Provider_ID:
 				if(slot >= 0) {
 					if(pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot) instanceof ModuleProvider)) return null;
-					return new GuiProvider(player.inventory, pipe.pipe, (ModuleProvider) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), ModLoader.getMinecraftInstance().currentScreen, slot + 1);
+					return new GuiProvider(player.inventory, pipe.pipe, (ModuleProvider) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), FMLClientHandler.instance().getClient().currentScreen, slot + 1);
 				} else {
 					ItemStack item = player.inventory.mainInventory[z];
 					if(item == null) return null;
-					ILogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, null, null);
+					LogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, null, null);
 					module.registerSlot(-1-z);
 					ItemModuleInformationManager.readInformation(item, module);
 					if(!(module instanceof ModuleProvider)) return null;
@@ -861,11 +946,11 @@ public class GuiHandler implements IGuiHandler {
 			case GuiIDs.GUI_Module_Terminus_ID:
 				if(slot >= 0) {
 					if(pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot) instanceof ModuleTerminus)) return null;
-					return new GuiTerminus(player.inventory, pipe.pipe, (ModuleTerminus) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), ModLoader.getMinecraftInstance().currentScreen);
+					return new GuiTerminus(player.inventory, pipe.pipe, (ModuleTerminus) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), FMLClientHandler.instance().getClient().currentScreen);
 				} else {
 					ItemStack item = player.inventory.mainInventory[z];
 					if(item == null) return null;
-					ILogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, null, null);
+					LogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, null, null);
 					module.registerSlot(-1-z);
 					ItemModuleInformationManager.readInformation(item, module);
 					if(!(module instanceof ModuleTerminus)) return null;
@@ -875,11 +960,11 @@ public class GuiHandler implements IGuiHandler {
 			case GuiIDs.GUI_Module_Advanced_Extractor_ID:
 				if(slot >= 0) {
 					if(pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot) instanceof ModuleAdvancedExtractor)) return null;
-					return new GuiAdvancedExtractor(player.inventory, pipe.pipe, (ModuleAdvancedExtractor) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), ModLoader.getMinecraftInstance().currentScreen, slot + 1);
+					return new GuiAdvancedExtractor(player.inventory, pipe.pipe, (ModuleAdvancedExtractor) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), FMLClientHandler.instance().getClient().currentScreen, slot + 1);
 				} else {
 					ItemStack item = player.inventory.mainInventory[z];
 					if(item == null) return null;
-					ILogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, null, null);
+					LogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, null, null);
 					module.registerSlot(-1-z);
 					ItemModuleInformationManager.readInformation(item, module);
 					if(!(module instanceof ModuleAdvancedExtractor)) return null;
@@ -889,11 +974,11 @@ public class GuiHandler implements IGuiHandler {
 			case GuiIDs.GUI_Module_ElectricManager_ID:
 				if(slot >= 0) {
 					if(pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot) instanceof ModuleElectricManager)) return null;
-					return new GuiElectricManager(player.inventory, pipe.pipe, (ModuleElectricManager) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), ModLoader.getMinecraftInstance().currentScreen, slot + 1);
+					return new GuiElectricManager(player.inventory, pipe.pipe, (ModuleElectricManager) ((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), FMLClientHandler.instance().getClient().currentScreen, slot + 1);
 				} else {
 					ItemStack item = player.inventory.mainInventory[z];
 					if(item == null) return null;
-					ILogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, null, null);
+					LogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, null, null);
 					module.registerSlot(-1-z);
 					ItemModuleInformationManager.readInformation(item, module);
 					if(!(module instanceof ModuleElectricManager)) return null;
@@ -903,11 +988,11 @@ public class GuiHandler implements IGuiHandler {
 			case GuiIDs.GUI_Module_Apiarist_Sink_ID:
 				if(slot >= 0) {
 					if(pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot) instanceof ModuleApiaristSink)) return null;
-					return new GuiApiaristSink((ModuleApiaristSink)((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), player, pipe.pipe, ModLoader.getMinecraftInstance().currentScreen, slot + 1);
+					return new GuiApiaristSink((ModuleApiaristSink)((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), player, pipe.pipe, FMLClientHandler.instance().getClient().currentScreen, slot + 1);
 				} else {
 					ItemStack item = player.inventory.mainInventory[z];
 					if(item == null) return null;
-					ILogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, new IWorldProvider() {
+					LogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, new IWorldProvider() {
 						@Override
 						public World getWorld() {
 							return world;
@@ -921,11 +1006,11 @@ public class GuiHandler implements IGuiHandler {
 			case GuiIDs.GUI_Module_ModBased_ItemSink_ID:
 				if(slot >= 0) {
 					if(pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot) instanceof ModuleModBasedItemSink)) return null;
-					return new GuiModBasedItemSink(player.inventory, pipe.pipe, (ModuleModBasedItemSink)((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot),  ModLoader.getMinecraftInstance().currentScreen, slot + 1);
+					return new GuiModBasedItemSink(player.inventory, pipe.pipe, (ModuleModBasedItemSink)((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot),  FMLClientHandler.instance().getClient().currentScreen, slot + 1);
 				} else {
 					ItemStack item = player.inventory.mainInventory[z];
 					if(item == null) return null;
-					ILogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, new IWorldProvider() {
+					LogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, new IWorldProvider() {
 						@Override
 						public World getWorld() {
 							return world;
@@ -939,11 +1024,11 @@ public class GuiHandler implements IGuiHandler {
 			case GuiIDs.GUI_Module_Thaumic_AspectSink_ID:
 				if(slot >= 0) {
 					if(pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot) instanceof ModuleThaumicAspectSink)) return null;
-					return new GuiThaumicAspectSink(player.inventory, pipe.pipe, (ModuleThaumicAspectSink)((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot),  ModLoader.getMinecraftInstance().currentScreen, slot + 1);
+					return new GuiThaumicAspectSink(player.inventory, pipe.pipe, (ModuleThaumicAspectSink)((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot),  FMLClientHandler.instance().getClient().currentScreen, slot + 1);
 				} else {
 					ItemStack item = player.inventory.mainInventory[z];
 					if(item == null) return null;
-					ILogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, new IWorldProvider() {
+					LogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, new IWorldProvider() {
 						@Override
 						public World getWorld() {
 							return world;
@@ -957,11 +1042,11 @@ public class GuiHandler implements IGuiHandler {
 			case GuiIDs.GUI_Module_Apiarist_Analyzer:
 				if(slot >= 0) {
 					if(pipe.pipe == null || !(pipe.pipe instanceof CoreRoutedPipe) || !(((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot) instanceof ModuleApiaristAnalyser)) return null;
-					return new GuiApiaristAnalyser((ModuleApiaristAnalyser)((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), pipe.pipe, ModLoader.getMinecraftInstance().currentScreen, player.inventory);
+					return new GuiApiaristAnalyser((ModuleApiaristAnalyser)((CoreRoutedPipe)pipe.pipe).getLogisticsModule().getSubModule(slot), pipe.pipe, FMLClientHandler.instance().getClient().currentScreen, player.inventory);
 				} else {
 					ItemStack item = player.inventory.mainInventory[z];
 					if(item == null) return null;
-					ILogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, new IWorldProvider() {
+					LogisticsModule module = LogisticsPipes.ModuleItem.getModuleForItem(item, null, null, null, new IWorldProvider() {
 						@Override
 						public World getWorld() {
 							return world;

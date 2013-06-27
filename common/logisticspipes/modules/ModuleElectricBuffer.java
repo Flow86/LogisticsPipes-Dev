@@ -3,7 +3,7 @@ package logisticspipes.modules;
 import java.util.List;
 
 import logisticspipes.api.IRoutedPowerProvider;
-import logisticspipes.interfaces.ILogisticsModule;
+import logisticspipes.interfaces.IInventoryUtil;
 import logisticspipes.interfaces.ISendRoutedItem;
 import logisticspipes.interfaces.IWorldProvider;
 import logisticspipes.interfaces.routing.IFilter;
@@ -17,14 +17,13 @@ import logisticspipes.utils.Pair3;
 import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
 import net.minecraft.client.renderer.texture.IconRegister;
-import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.Icon;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-public class ModuleElectricBuffer implements ILogisticsModule {
+public class ModuleElectricBuffer extends LogisticsModule {
 	private IInventoryProvider _invProvider;
 	private IRoutedPowerProvider _power;
 	private ISendRoutedItem _itemSender;
@@ -63,17 +62,17 @@ public class ModuleElectricBuffer implements ILogisticsModule {
 	}
 	@Override 
 	public final int getY() {
-		return this._power.getX();
+		return this._power.getY();
 	}
 	
 	@Override 
 	public final int getZ() {
-		return this._power.getX();
+		return this._power.getZ();
 	}
 
 	private final SinkReply _sinkReply = new SinkReply(FixedPriority.ElectricNetwork, 0, true, false, 1, 0);
 	@Override
-	public SinkReply sinksItem(ItemIdentifier stack, int bestPriority, int bestCustomPriority) {
+	public SinkReply sinksItem(ItemIdentifier stack, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
 		if (bestPriority >= FixedPriority.ElectricNetwork.ordinal()) return null;
 		if (SimpleServiceLocator.IC2Proxy.isElectricItem(stack.makeNormalStack(1))) {
 			if (_power.canUseEnergy(1)) {
@@ -84,7 +83,7 @@ public class ModuleElectricBuffer implements ILogisticsModule {
 	}
 
 	@Override
-	public ILogisticsModule getSubModule(int slot) {
+	public LogisticsModule getSubModule(int slot) {
 		return null;
 	}
 
@@ -93,7 +92,7 @@ public class ModuleElectricBuffer implements ILogisticsModule {
 		if (++currentTickCount < ticksToAction) return;
 		currentTickCount = 0;
 
-		IInventory inv = _invProvider.getPointedInventory();
+		IInventoryUtil inv = _invProvider.getPointedInventory(true);
 		if (inv == null) return;
 		for (int i = 0; i < inv.getSizeInventory(); i++) {
 			ItemStack stack = inv.getStackInSlot(i);

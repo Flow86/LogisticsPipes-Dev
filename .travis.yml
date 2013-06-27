@@ -4,12 +4,13 @@ jdk:
   - openjdk7
   - openjdk6
 before_script:
-  - sudo apt-get install astyle
+  - sudo apt-get install astyle expect
   - mkdir src
   - mv common src/
   - mv dummy src/
   - mv resources src/
   - mv .gitignore src/
   - mv build.xml src/
+  - mv expect.tcl src/
   - cd src
 script: ant test

@@ -5,8 +5,7 @@ import java.util.List;
 
 import logisticspipes.api.IRoutedPowerProvider;
 import logisticspipes.interfaces.IClientInformationProvider;
-import logisticspipes.interfaces.ILogisticsGuiModule;
-import logisticspipes.interfaces.ILogisticsModule;
+import logisticspipes.interfaces.IInventoryUtil;
 import logisticspipes.interfaces.IModuleWatchReciver;
 import logisticspipes.interfaces.ISendRoutedItem;
 import logisticspipes.interfaces.IWorldProvider;
@@ -14,7 +13,7 @@ import logisticspipes.interfaces.routing.IFilter;
 import logisticspipes.logisticspipes.IInventoryProvider;
 import logisticspipes.network.GuiIDs;
 import logisticspipes.network.NetworkConstants;
-import logisticspipes.network.packets.PacketModuleInteger;
+import logisticspipes.network.oldpackets.PacketModuleInteger;
 import logisticspipes.pipes.basic.CoreRoutedPipe.ItemSendMode;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
@@ -24,14 +23,13 @@ import logisticspipes.utils.SinkReply;
 import logisticspipes.utils.SinkReply.FixedPriority;
 import net.minecraft.client.renderer.texture.IconRegister;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.Icon;
 import cpw.mods.fml.common.network.Player;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
-public class ModuleApiaristAnalyser implements ILogisticsGuiModule, IClientInformationProvider, IModuleWatchReciver {
+public class ModuleApiaristAnalyser extends LogisticsGuiModule implements IClientInformationProvider, IModuleWatchReciver {
 
 	private IInventoryProvider _invProvider;
 	private ISendRoutedItem _itemSender;
@@ -70,7 +68,7 @@ public class ModuleApiaristAnalyser implements ILogisticsGuiModule, IClientInfor
 
 	private static final SinkReply _sinkReply = new SinkReply(FixedPriority.APIARIST_Analyser, 0, true, false, 3, 0);
 	@Override
-	public SinkReply sinksItem(ItemIdentifier itemID, int bestPriority, int bestCustomPriority) {
+	public SinkReply sinksItem(ItemIdentifier itemID, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
 		if(bestPriority > _sinkReply.fixedPriority.ordinal() || (bestPriority == _sinkReply.fixedPriority.ordinal() && bestCustomPriority >= _sinkReply.customPriority)) return null;
 		ItemStack item = itemID.makeNormalStack(1);
 		if(SimpleServiceLocator.forestryProxy.isBee(item)) {
@@ -84,7 +82,7 @@ public class ModuleApiaristAnalyser implements ILogisticsGuiModule, IClientInfor
 	}
 
 	@Override
-	public ILogisticsModule getSubModule(int slot) {
+	public LogisticsModule getSubModule(int slot) {
 		return null;
 	}
 
@@ -93,7 +91,7 @@ public class ModuleApiaristAnalyser implements ILogisticsGuiModule, IClientInfor
 		if (extractMode) {
 			if (++currentTick < ticksToAction) return;
 			currentTick = 0;
-			IInventory inv = _invProvider.getRawInventory();
+			IInventoryUtil inv = _invProvider.getUnsidedInventory();
 			if (inv == null) return;
 			for (int i = 0; i < inv.getSizeInventory(); i++) {
 				ItemStack item = inv.getStackInSlot(i);

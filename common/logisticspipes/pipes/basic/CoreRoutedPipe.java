@@ -21,7 +21,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
-import java.util.concurrent.DelayQueue;
+import java.util.concurrent.PriorityBlockingQueue;
 
 import logisticspipes.LogisticsPipes;
 import logisticspipes.api.ILogisticsPowerProvider;
@@ -29,8 +29,6 @@ import logisticspipes.api.IRoutedPowerProvider;
 import logisticspipes.blocks.LogisticsSecurityTileEntity;
 import logisticspipes.config.Configs;
 import logisticspipes.gates.ActionDisableLogistics;
-import logisticspipes.interfaces.ILogisticsGuiModule;
-import logisticspipes.interfaces.ILogisticsModule;
 import logisticspipes.interfaces.ISecurityProvider;
 import logisticspipes.interfaces.IWatchingHandler;
 import logisticspipes.interfaces.IWorldProvider;
@@ -45,9 +43,11 @@ import logisticspipes.logisticspipes.ITrackStatistics;
 import logisticspipes.logisticspipes.PipeTransportLayer;
 import logisticspipes.logisticspipes.RouteLayer;
 import logisticspipes.logisticspipes.TransportLayer;
+import logisticspipes.modules.LogisticsGuiModule;
+import logisticspipes.modules.LogisticsModule;
 import logisticspipes.network.NetworkConstants;
 import logisticspipes.network.TilePacketWrapper;
-import logisticspipes.network.packets.PacketRoutingStats;
+import logisticspipes.network.oldpackets.PacketRoutingStats;
 import logisticspipes.pipefxhandlers.Particles;
 import logisticspipes.pipes.upgrades.UpgradeManager;
 import logisticspipes.proxy.MainProxy;
@@ -131,7 +131,7 @@ public abstract class CoreRoutedPipe extends Pipe implements IRequestItems, IAdj
 	
 	protected RouteLayer _routeLayer;
 	protected TransportLayer _transportLayer;
-	private DelayQueue<IRoutedItem> _inTransitToMe = new DelayQueue<IRoutedItem>();
+	private final PriorityBlockingQueue<IRoutedItem> _inTransitToMe = new PriorityBlockingQueue<IRoutedItem>(10,new IRoutedItem.DelayComparator());
 	
 	private UpgradeManager upgradeManager = new UpgradeManager(this);
 	
@@ -186,8 +186,8 @@ public abstract class CoreRoutedPipe extends Pipe implements IRequestItems, IAdj
 		return upgradeManager;
 	}
 	
-	public logisticspipes.network.packets.PacketPayload getLogisticsNetworkPacket() {
-		logisticspipes.network.packets.PacketPayload payload = new TilePacketWrapper(new Class[] { container.getClass(), transport.getClass(), logic.getClass() }).toPayload(getX(), getY(), getZ(), new Object[] { container, transport, logic });
+	public logisticspipes.network.oldpackets.PacketPayload getLogisticsNetworkPacket() {
+		logisticspipes.network.oldpackets.PacketPayload payload = new TilePacketWrapper(new Class[] { container.getClass(), transport.getClass(), logic.getClass() }).toPayload(getX(), getY(), getZ(), new Object[] { container, transport, logic });
 
 		return payload;
 	}
@@ -237,7 +237,7 @@ public abstract class CoreRoutedPipe extends Pipe implements IRequestItems, IAdj
 	
 	private void notifyOfSend(IRoutedItem routedItem) {
 		this._inTransitToMe.add(routedItem);
-		
+		//LogisticsPipes.log.info("Sending: "+routedItem.getIDStack().getItem().getFriendlyName());
 	}
 
 	public abstract ItemSendMode getItemSendMode();
@@ -329,8 +329,14 @@ public abstract class CoreRoutedPipe extends Pipe implements IRequestItems, IAdj
 				worldObj.markBlockForUpdate(this.getX(), this.getY(), this.getZ());
 			}
 		}
-		// remove old items _inTransit -- these should have arived, but have probably been lost instead. In either case, it will allow a re-send so that another attempt to re-fill the inventory can be made.
-		while(this._inTransitToMe.poll()!=null){}
+
+		// remove old items _inTransit -- these should have arrived, but have probably been lost instead. In either case, it will allow a re-send so that another attempt to re-fill the inventory can be made.		
+		while(this._inTransitToMe.peek()!=null && this._inTransitToMe.peek().getTickToTimeOut()<=0){
+			final IRoutedItem p=_inTransitToMe.poll();
+			if (LogisticsPipes.DEBUG) {
+					LogisticsPipes.log.info("Timed Out: "+p.getIDStack().getItem().getFriendlyName());
+			}
+		}
 		//update router before ticking logic/transport
 		getRouter().update(worldObj.getWorldTime() % Configs.LOGISTICS_DETECTION_FREQUENCY == _delayOffset || _initialInit);
 		getUpgradeManager().securityTick();
@@ -640,7 +646,7 @@ public abstract class CoreRoutedPipe extends Pipe implements IRequestItems, IAdj
 		super.onBlockPlaced();
 	}
 	
-	public abstract ILogisticsModule getLogisticsModule();
+	public abstract LogisticsModule getLogisticsModule();
 	
 	@Override
 	public final boolean blockActivated(World world, int i, int j, int k, EntityPlayer entityplayer) {
@@ -678,10 +684,10 @@ public abstract class CoreRoutedPipe extends Pipe implements IRequestItems, IAdj
 	}
 	
 	protected boolean wrenchClicked(World world, int i, int j, int k, EntityPlayer entityplayer, SecuritySettings settings) {
-		if (getLogisticsModule() != null && getLogisticsModule() instanceof ILogisticsGuiModule) {
+		if (getLogisticsModule() != null && getLogisticsModule() instanceof LogisticsGuiModule) {
 			if(MainProxy.isServer(world)) {
 				if (settings == null || settings.openGui) {
-					entityplayer.openGui(LogisticsPipes.instance, ((ILogisticsGuiModule)getLogisticsModule()).getGuiHandlerID(), world, getX(), getY(), getZ());
+					entityplayer.openGui(LogisticsPipes.instance, ((LogisticsGuiModule)getLogisticsModule()).getGuiHandlerID(), world, getX(), getY(), getZ());
 				} else {
 					entityplayer.sendChatToPlayer("Permission denied");
 				}
@@ -1044,6 +1050,7 @@ public abstract class CoreRoutedPipe extends Pipe implements IRequestItems, IAdj
 
 	public void notifyOfItemArival(RoutedEntityItem routedEntityItem) {
 		this._inTransitToMe.remove(routedEntityItem);		
+		//LogisticsPipes.log.info("Ariving: "+routedEntityItem.getIDStack().getItem().getFriendlyName());
 	}
 
 	public int countOnRoute(ItemIdentifier it) {
@@ -1102,6 +1109,10 @@ public abstract class CoreRoutedPipe extends Pipe implements IRequestItems, IAdj
 	
 	protected void addRouterCrashReport(CrashReportCategory crashReportCategory) {
 		crashReportCategory.addCrashSection("Router", this.getRouter().toString());
+	}
+	
+	public boolean isLiquidPipe() {
+		return false;
 	}
 	
 	/* --- Trigger --- */

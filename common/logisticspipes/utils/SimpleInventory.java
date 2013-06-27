@@ -139,12 +139,12 @@ public class SimpleInventory implements IInventory, ISaveState{
     	nbttagcompound.setInteger(prefix + "itemsCount", _contents.length);
 	}
 
-	public void dropContents(World worldObj, int xCoord, int yCoord, int zCoord) {
+	public void dropContents(World worldObj, int posX, int posY, int posZ) {
 		if(MainProxy.isServer(worldObj)) {
 			for(int i=0;i<_contents.length;i++) {
 				while(_contents[i] != null) {
 					ItemStack todrop = decrStackSize(i, _contents[i].getMaxStackSize());
-			    	dropItems(worldObj, todrop, xCoord, yCoord, zCoord);
+			    	dropItems(worldObj, todrop, posX, posY, posZ);
 				}
 			}
 			updateContents();
@@ -222,6 +222,7 @@ public class SimpleInventory implements IInventory, ISaveState{
 	}
 	
 	public int addCompressed(ItemStack stack) {
+		if(stack == null) return 0;
 		stack = stack.copy();
 		for(int i=0; i<this._contents.length;i++) {
 			if(stack.stackSize <= 0) {

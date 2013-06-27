@@ -1,6 +1,5 @@
 package logisticspipes.network;
 
-import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -28,8 +27,8 @@ import logisticspipes.interfaces.ISendQueueContentRecieiver;
 import logisticspipes.interfaces.ISneakyDirectionReceiver;
 import logisticspipes.interfaces.PlayerListReciver;
 import logisticspipes.logic.BaseLogicCrafting;
-import logisticspipes.logic.BaseLogicSatellite;
 import logisticspipes.logic.LogicLiquidSupplier;
+import logisticspipes.logic.LogicLiquidSupplierMk2;
 import logisticspipes.logic.LogicProvider;
 import logisticspipes.logic.LogicSupplier;
 import logisticspipes.modules.ModuleAdvancedExtractor;
@@ -40,34 +39,35 @@ import logisticspipes.modules.ModuleItemSink;
 import logisticspipes.modules.ModuleModBasedItemSink;
 import logisticspipes.modules.ModuleThaumicAspectSink;
 import logisticspipes.nei.LoadingHelper;
-import logisticspipes.network.packets.GuiArgumentPacket;
-import logisticspipes.network.packets.PacketBufferTransfer;
-import logisticspipes.network.packets.PacketCoordinatesUUID;
-import logisticspipes.network.packets.PacketCraftingLoop;
-import logisticspipes.network.packets.PacketInteger;
-import logisticspipes.network.packets.PacketInventoryChange;
-import logisticspipes.network.packets.PacketItem;
-import logisticspipes.network.packets.PacketItems;
-import logisticspipes.network.packets.PacketLiquidUpdate;
-import logisticspipes.network.packets.PacketModuleInteger;
-import logisticspipes.network.packets.PacketModuleInvContent;
-import logisticspipes.network.packets.PacketModuleNBT;
-import logisticspipes.network.packets.PacketNBT;
-import logisticspipes.network.packets.PacketNameUpdatePacket;
-import logisticspipes.network.packets.PacketPipeBitSet;
-import logisticspipes.network.packets.PacketPipeInteger;
-import logisticspipes.network.packets.PacketPipeInvContent;
-import logisticspipes.network.packets.PacketPipeUpdate;
-import logisticspipes.network.packets.PacketRenderFX;
-import logisticspipes.network.packets.PacketRequestGuiContent;
-import logisticspipes.network.packets.PacketRoutingStats;
-import logisticspipes.network.packets.PacketSimulate;
-import logisticspipes.network.packets.PacketStringList;
+import logisticspipes.network.oldpackets.PacketBufferTransfer;
+import logisticspipes.network.oldpackets.PacketCoordinatesUUID;
+import logisticspipes.network.oldpackets.PacketCraftingLoop;
+import logisticspipes.network.oldpackets.PacketGuiArgument;
+import logisticspipes.network.oldpackets.PacketInteger;
+import logisticspipes.network.oldpackets.PacketInventoryChange;
+import logisticspipes.network.oldpackets.PacketItem;
+import logisticspipes.network.oldpackets.PacketItems;
+import logisticspipes.network.oldpackets.PacketLiquidUpdate;
+import logisticspipes.network.oldpackets.PacketModuleInteger;
+import logisticspipes.network.oldpackets.PacketModuleInvContent;
+import logisticspipes.network.oldpackets.PacketModuleNBT;
+import logisticspipes.network.oldpackets.PacketNBT;
+import logisticspipes.network.oldpackets.PacketNameUpdatePacket;
+import logisticspipes.network.oldpackets.PacketPipeBitSet;
+import logisticspipes.network.oldpackets.PacketPipeInteger;
+import logisticspipes.network.oldpackets.PacketPipeInvContent;
+import logisticspipes.network.oldpackets.PacketPipeUpdate;
+import logisticspipes.network.oldpackets.PacketRenderFX;
+import logisticspipes.network.oldpackets.PacketRequestGuiContent;
+import logisticspipes.network.oldpackets.PacketRoutingStats;
+import logisticspipes.network.oldpackets.PacketSimulate;
+import logisticspipes.network.oldpackets.PacketStringList;
 import logisticspipes.pipes.PipeItemsApiaristSink;
 import logisticspipes.pipes.PipeItemsFirewall;
 import logisticspipes.pipes.PipeItemsInvSysConnector;
 import logisticspipes.pipes.PipeItemsLiquidSupplier;
 import logisticspipes.pipes.PipeItemsRequestLogisticsMk2;
+import logisticspipes.pipes.PipeLiquidSupplierMk2;
 import logisticspipes.pipes.PipeLogisticsChassi;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.MainProxy;
@@ -78,7 +78,6 @@ import logisticspipes.utils.ItemMessage;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.network.INetworkManager;
 import net.minecraft.network.packet.Packet250CustomPayload;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
@@ -89,31 +88,10 @@ import cpw.mods.fml.common.network.Player;
 
 public class ClientPacketHandler {
 	
-	public static void onPacketData(INetworkManager manager, Packet250CustomPayload packet, Player player) {
-		final DataInputStream data = new DataInputStream(new ByteArrayInputStream(packet.data));
-		onPacketData(data, player);
-	}
-	
-	public static void onPacketData(DataInputStream data, Player player) {
+	public static void onPacketData(final DataInputStream data,
+			final Player player, final int packetID) {
 		try {
-
-			final int packetID = data.read();
 			switch (packetID) {
-				case NetworkConstants.CRAFTING_PIPE_SATELLITE_ID:
-					final PacketPipeInteger packetA1 = new PacketPipeInteger();
-					packetA1.readData(data);
-					onCraftingPipeSetSatellite(packetA1);
-					break;
-				case NetworkConstants.CRAFTING_PIPE_IMPORT_BACK:
-					final PacketInventoryChange packetA = new PacketInventoryChange();
-					packetA.readData(data);
-					onCraftingPipeSetImport(packetA);
-					break;
-				case NetworkConstants.SATELLITE_PIPE_SATELLITE_ID:
-					final PacketPipeInteger packetB = new PacketPipeInteger();
-					packetB.readData(data);
-					onSatellitePipeSetSatellite(packetB);
-					break;
 				case NetworkConstants.ORDERER_CONTENT_ANSWER:
 					final PacketRequestGuiContent packetC = new PacketRequestGuiContent();
 					packetC.readData(data);
@@ -340,7 +318,7 @@ public class ClientPacketHandler {
 					onSetSecurityCC(packetBb);
 					break;
 				case NetworkConstants.GUI_ARGUMENT_PACKET:
-					final GuiArgumentPacket packetBc = new GuiArgumentPacket();
+					final PacketGuiArgument packetBc = new PacketGuiArgument();
 					packetBc.readData(data);
 					GuiHandler.argumentQueue.put(packetBc.guiID, packetBc.args);
 					break;
@@ -369,52 +347,25 @@ public class ClientPacketHandler {
 					packetBh.readData(data);
 					onSetSecurityDestroy(packetBh);
 					break;
+				case NetworkConstants.LIQUID_CRAFTING_PIPE_SATELLITE_ID_ADVANCED:
+					final PacketModuleInteger packetBi = new PacketModuleInteger();
+					packetBi.readData(data);
+					onCraftingPipeSetLiquidSatelliteAdvanced(packetBi);
+					break;
+				case NetworkConstants.LIQUID_CRAFTING_PIPE_AMOUNT:
+					final PacketModuleInteger packetBj = new PacketModuleInteger();
+					packetBj.readData(data);
+					onCraftingPipeLiquidAmountChange(packetBj);
+					break;
+				case NetworkConstants.LIQUID_SUPPLIER_LIQUID_AMOUNT:
+					final PacketPipeInteger packetBk = new PacketPipeInteger();
+					packetBk.readData(data);
+					onLiquidSuppierPipeAmount(packetBk);
+					break;
 			}
 		} catch (final Exception ex) {
 			ex.printStackTrace();
 		}
-	}
-
-	private static void onCraftingPipeSetSatellite(PacketPipeInteger packet) {
-		final TileGenericPipe pipe = getPipe(FMLClientHandler.instance().getClient().theWorld, packet.posX, packet.posY, packet.posZ);
-		if (pipe == null) {
-			return;
-		}
-
-		if (!(pipe.pipe.logic instanceof BaseLogicCrafting)) {
-			return;
-		}
-
-		((BaseLogicCrafting) pipe.pipe.logic).setSatelliteId(packet.integer, -1, -1);
-	}
-
-	private static void onCraftingPipeSetImport(PacketInventoryChange packet) {
-		final TileGenericPipe pipe = getPipe(FMLClientHandler.instance().getClient().theWorld, packet.posX, packet.posY, packet.posZ);
-		if (pipe == null) {
-			return;
-		}
-
-		if (!(pipe.pipe.logic instanceof BaseLogicCrafting)) {
-			return;
-		}
-
-		final BaseLogicCrafting craftingPipe = (BaseLogicCrafting) pipe.pipe.logic;
-		for (int i = 0; i < packet.itemStacks.size(); i++) {
-			craftingPipe.setDummyInventorySlot(i, packet.itemStacks.get(i));
-		}
-	}
-
-	private static void onSatellitePipeSetSatellite(PacketPipeInteger packet) {
-		final TileGenericPipe pipe = getPipe(FMLClientHandler.instance().getClient().theWorld, packet.posX, packet.posY, packet.posZ);
-		if (pipe == null) {
-			return;
-		}
-
-		if (!(pipe.pipe.logic instanceof BaseLogicSatellite)) {
-			return;
-		}
-
-		((BaseLogicSatellite) pipe.pipe.logic).setSatelliteId(packet.integer);
 	}
 
 	private static void onOrdererRefreshAnswer(PacketRequestGuiContent packet) {
@@ -612,11 +563,6 @@ public class ClientPacketHandler {
 	}
 
 	private static void handleBeePacketNBT(PacketModuleNBT packet) {
-		if(packet.slot < 0) {
-			//EntityPlayer player = FMLClientHandler.instance().getClient().thePlayer;
-			//ItemStack module = player.inventory.mainInventory[packet.posZ];
-			return;
-		}
 		final TileGenericPipe tile = getPipe(FMLClientHandler.instance().getClient().theWorld, packet.posX, packet.posY, packet.posZ);
 		if(tile == null) {
 			return;
@@ -639,6 +585,9 @@ public class ClientPacketHandler {
 		}
 		if(tile.pipe instanceof PipeItemsLiquidSupplier && tile.pipe.logic instanceof LogicLiquidSupplier) {
 			((LogicLiquidSupplier)tile.pipe.logic).setRequestingPartials((packet.integer % 10) == 1);		
+		}
+		if(tile.pipe instanceof PipeLiquidSupplierMk2 && tile.pipe.logic instanceof LogicLiquidSupplierMk2) {
+			((LogicLiquidSupplierMk2)tile.pipe.logic).setRequestingPartials((packet.integer % 10) == 1);		
 		}
 	}
 	
@@ -973,7 +922,7 @@ public class ClientPacketHandler {
 			return;
 		}
 
-		((BaseLogicCrafting) pipe.pipe.logic).setSatelliteId(packet.integer, packet.slot, -1);
+		((BaseLogicCrafting) pipe.pipe.logic).setSatelliteId(packet.integer, packet.slot);
 	}
 
 	private static void onCCIDs(PacketNBT packet) {
@@ -991,6 +940,45 @@ public class ClientPacketHandler {
 				((GuiSecurityStation)FMLClientHandler.instance().getClient().currentScreen).refreshCheckBoxes();
 			}
 		}
+	}
+
+	private static void onCraftingPipeSetLiquidSatelliteAdvanced(PacketModuleInteger packet) {
+		final TileGenericPipe pipe = getPipe(FMLClientHandler.instance().getClient().theWorld, packet.posX, packet.posY, packet.posZ);
+		if (pipe == null) {
+			return;
+		}
+
+		if (!(pipe.pipe.logic instanceof BaseLogicCrafting)) {
+			return;
+		}
+
+		((BaseLogicCrafting) pipe.pipe.logic).setLiquidSatelliteId(packet.integer, packet.slot);
+	}
+
+	private static void onCraftingPipeLiquidAmountChange(PacketModuleInteger packet) {
+		final TileGenericPipe pipe = getPipe(FMLClientHandler.instance().getClient().theWorld, packet.posX, packet.posY, packet.posZ);
+		if (pipe == null) {
+			return;
+		}
+
+		if (!(pipe.pipe.logic instanceof BaseLogicCrafting)) {
+			return;
+		}
+
+		((BaseLogicCrafting) pipe.pipe.logic).defineLiquidAmount(packet.integer, packet.slot);
+	}
+
+	private static void onLiquidSuppierPipeAmount(PacketPipeInteger packet) {
+		final TileGenericPipe pipe = getPipe(FMLClientHandler.instance().getClient().theWorld, packet.posX, packet.posY, packet.posZ);
+		if (pipe == null) {
+			return;
+		}
+
+		if (!(pipe.pipe.logic instanceof LogicLiquidSupplierMk2)) {
+			return;
+		}
+
+		((LogicLiquidSupplierMk2) pipe.pipe.logic).setAmount(packet.integer);
 	}
 	
 	// BuildCraft method

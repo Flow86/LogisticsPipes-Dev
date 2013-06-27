@@ -16,9 +16,9 @@ import java.util.Map.Entry;
 
 import logisticspipes.LogisticsPipes;
 import logisticspipes.api.IRequestAPI;
-import logisticspipes.interfaces.ILogisticsModule;
 import logisticspipes.interfaces.routing.IRequestItems;
 import logisticspipes.logic.TemporaryLogic;
+import logisticspipes.modules.LogisticsModule;
 import logisticspipes.network.GuiIDs;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.MainProxy;
@@ -54,7 +54,7 @@ public class PipeItemsRequestLogistics extends CoreRoutedPipe implements IReques
 	}
 
 	@Override
-	public ILogisticsModule getLogisticsModule() {
+	public LogisticsModule getLogisticsModule() {
 		return null;
 	}
 	
@@ -185,9 +185,16 @@ outer:
 	@CCCommand(description="Requests the given ItemIdentifier Id with the given amount")
 	@CCQueued
 	public String makeRequest(Double itemId, Double amount) throws Exception {
+		return makeRequest(itemId, amount, false);
+	}
+	@CCCommand(description="Requests the given ItemIdentifier Id with the given amount")
+	@CCQueued
+	public String makeRequest(Double itemId, Double amount, Boolean forceCrafting) throws Exception {
+		if(forceCrafting==null)
+			forceCrafting=false;
 		ItemIdentifier item = ItemIdentifier.getForId((int)Math.floor(itemId));
 		if(item == null) throw new Exception("Invalid ItemIdentifierID");
-		return RequestHandler.computerRequest(item.makeStack((int)Math.floor(amount)), this);
+		return RequestHandler.computerRequest(item.makeStack((int)Math.floor(amount)), this,forceCrafting);
 	}
 
 	@CCCommand(description="Asks for all available ItemIdentifier inside the Logistics Network")

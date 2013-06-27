@@ -2,43 +2,42 @@ package logisticspipes.utils;
 
 import logisticspipes.proxy.SimpleServiceLocator;
 import net.minecraft.inventory.IInventory;
-import net.minecraft.tileentity.TileEntity;
+import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.tileentity.TileEntityChest;
-import net.minecraft.tileentity.TileEntityFurnace;
-import net.minecraftforge.common.ForgeDirection;
-import net.minecraftforge.common.ISidedInventory;
-import buildcraft.api.core.Position;
 import buildcraft.api.inventory.ISpecialInventory;
 import buildcraft.core.inventory.ITransactor;
-import buildcraft.core.inventory.TransactorForgeSided;
+import buildcraft.core.inventory.InventoryWrapper;
 import buildcraft.core.inventory.TransactorSimple;
 import buildcraft.core.inventory.TransactorSpecial;
-import buildcraft.core.inventory.TransactorVanillaSided;
-import buildcraft.core.utils.Utils;
 
 public class InventoryHelper {
 	//BC getInventory with fixed doublechest halves ordering.
 	public static IInventory getInventory(IInventory inv) {
 		if (inv instanceof TileEntityChest) {
 			TileEntityChest chest = (TileEntityChest) inv;
-			Position pos = new Position(chest.xCoord, chest.yCoord, chest.zCoord);
-			TileEntity tile;
-			tile = Utils.getTile(chest.worldObj, pos, ForgeDirection.WEST);
-			if (tile instanceof TileEntityChest) {
-				return new InventoryLargeChestLogistics("", (IInventory) tile, inv);
+			
+			TileEntityChest adjacent = null;
+			
+			if (chest.adjacentChestXNeg != null){
+				adjacent = chest.adjacentChestXNeg;  
 			}
-			tile = Utils.getTile(chest.worldObj, pos, ForgeDirection.EAST);
-			if (tile instanceof TileEntityChest) {
-				return new InventoryLargeChestLogistics("", inv, (IInventory) tile);
+			
+			if (chest.adjacentChestXPos != null){
+				adjacent = chest.adjacentChestXPos;  
 			}
-			tile = Utils.getTile(chest.worldObj, pos, ForgeDirection.NORTH);
-			if (tile instanceof TileEntityChest) {
-				return new InventoryLargeChestLogistics("", (IInventory) tile, inv);
+			
+			if (chest.adjacentChestZNeg != null){
+				adjacent = chest.adjacentChestZNeg;  
 			}
-			tile = Utils.getTile(chest.worldObj, pos, ForgeDirection.SOUTH);
-			if (tile instanceof TileEntityChest) {
-				return new InventoryLargeChestLogistics("", inv, (IInventory) tile);
+			
+			if (chest.adjacentChestZPosition != null){
+				adjacent = chest.adjacentChestZPosition;  
 			}
+			
+			if (adjacent != null){
+				return new InventoryLargeChestLogistics("", inv, adjacent);
+			}
+			return inv;
 		}
 		return inv;
 	}
@@ -52,18 +51,20 @@ public class InventoryHelper {
 			}
 		}
 
+		
 		if (object instanceof ISpecialInventory)
 			return new TransactorSpecial((ISpecialInventory) object);
 
-		else if (object instanceof net.minecraft.inventory.ISidedInventory)
-		    return new TransactorVanillaSided((net.minecraft.inventory.ISidedInventory) object);
-
 		else if (object instanceof ISidedInventory)
-			return new TransactorForgeSided((ISidedInventory) object);
+			return new TransactorSimple((ISidedInventory) object);
+
+		else if (object instanceof net.minecraftforge.common.ISidedInventory)
+			return new TransactorSimple(InventoryWrapper.getWrappedInventory(object));
 
 		else if (object instanceof IInventory)
 			return new TransactorSimple(getInventory((IInventory) object));
 
 		return null;
+
 	}
 }

@@ -4,11 +4,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 import logisticspipes.LogisticsPipes;
-import logisticspipes.interfaces.ILogisticsModule;
 import logisticspipes.items.LogisticsLiquidContainer;
+import logisticspipes.logic.BaseRoutingLogic;
 import logisticspipes.logic.TemporaryLogic;
 import logisticspipes.logisticspipes.IRoutedItem;
 import logisticspipes.logisticspipes.IRoutedItem.TransportMode;
+import logisticspipes.modules.LogisticsModule;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
@@ -34,6 +35,12 @@ public abstract class LiquidRoutedPipe extends CoreRoutedPipe implements IItemTr
 	
 	public LiquidRoutedPipe(int itemID) {
 		super(new PipeLiquidTransportLogistics(), new TemporaryLogic(), itemID);
+		((PipeTransportItems) transport).travelHook = this;
+		worldUtil = new WorldUtil(worldObj, getX(), getY(), getZ());
+	}
+	
+	public LiquidRoutedPipe(BaseRoutingLogic logic, int itemID) {
+		super(new PipeLiquidTransportLogistics(), logic, itemID);
 		((PipeTransportItems) transport).travelHook = this;
 		worldUtil = new WorldUtil(worldObj, getX(), getY(), getZ());
 	}
@@ -85,7 +92,7 @@ public abstract class LiquidRoutedPipe extends CoreRoutedPipe implements IItemTr
 	}
 	
 	@Override
-	public ILogisticsModule getLogisticsModule() {
+	public LogisticsModule getLogisticsModule() {
 		return null;
 	}
 	
@@ -126,6 +133,9 @@ public abstract class LiquidRoutedPipe extends CoreRoutedPipe implements IItemTr
 			int validDirections = 0;
 			List<Pair<TileEntity,ForgeDirection>> list = getAdjacentTanks(true);
 			for(Pair<TileEntity,ForgeDirection> pair:list) {
+				if(pair.getValue1() instanceof TileGenericPipe) {
+					if(((TileGenericPipe)pair.getValue1()).pipe instanceof CoreRoutedPipe) continue;
+				}
 				LogisticsLiquidSection tank = ((PipeLiquidTransportLogistics)this.transport).sideTanks[pair.getValue2().ordinal()];
 				validDirections++;
 				if(tank.getLiquid() == null) continue;
@@ -143,6 +153,9 @@ public abstract class LiquidRoutedPipe extends CoreRoutedPipe implements IItemTr
 			LiquidStack stack = tank.getLiquid();
 			if(stack == null) return;
 			for(Pair<TileEntity,ForgeDirection> pair:list) {
+				if(pair.getValue1() instanceof TileGenericPipe) {
+					if(((TileGenericPipe)pair.getValue1()).pipe instanceof CoreRoutedPipe) continue;
+				}
 				LogisticsLiquidSection tankSide = ((PipeLiquidTransportLogistics)this.transport).sideTanks[pair.getValue2().ordinal()];
 				stack = tank.getLiquid();
 				if(stack == null) continue;
@@ -210,4 +223,26 @@ public abstract class LiquidRoutedPipe extends CoreRoutedPipe implements IItemTr
 		}
 	}
 
+	@Override
+	public boolean isLiquidPipe() {
+		return true;
+	}
+	
+	public boolean sharesTankWith(LiquidRoutedPipe other){
+		List<TileEntity> theirs = other.getAllTankTiles();
+		for(TileEntity tile:this.getAllTankTiles()) {
+			if(theirs.contains(tile)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public List<TileEntity> getAllTankTiles() {
+		List<TileEntity> list = new ArrayList<TileEntity>();
+		for(Pair<TileEntity, ForgeDirection> pair:getAdjacentTanks(false)) {
+			list.addAll(SimpleServiceLocator.specialTankHandler.getBaseTileFor(pair.getValue1()));
+		}
+		return list;
+	}
 }

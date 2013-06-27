@@ -14,13 +14,14 @@ import logisticspipes.interfaces.IGuiOpenControler;
 import logisticspipes.interfaces.ISecurityProvider;
 import logisticspipes.items.LogisticsItemCard;
 import logisticspipes.network.NetworkConstants;
-import logisticspipes.network.packets.PacketCoordinatesUUID;
-import logisticspipes.network.packets.PacketNBT;
-import logisticspipes.network.packets.PacketPipeInteger;
+import logisticspipes.network.oldpackets.PacketCoordinatesUUID;
+import logisticspipes.network.oldpackets.PacketNBT;
+import logisticspipes.network.oldpackets.PacketPipeInteger;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.security.SecuritySettings;
 import logisticspipes.utils.SimpleInventory;
+import net.minecraft.crash.CrashReportCategory;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
@@ -320,5 +321,11 @@ public class LogisticsSecurityTileEntity extends TileEntity implements IGuiOpenC
 			}
 		}
 		return false;
+	}
+
+	@Override
+	public void func_85027_a(CrashReportCategory par1CrashReportCategory) {
+		super.func_85027_a(par1CrashReportCategory);
+		par1CrashReportCategory.addCrashSection("LP-Version", LogisticsPipes.VERSION);
 	}
 }

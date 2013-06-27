@@ -1,13 +1,12 @@
 package logisticspipes.modules;
 
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import logisticspipes.api.IRoutedPowerProvider;
 import logisticspipes.interfaces.IInventoryUtil;
-import logisticspipes.interfaces.ILogisticsModule;
 import logisticspipes.interfaces.ISendRoutedItem;
 import logisticspipes.interfaces.IWorldProvider;
 import logisticspipes.interfaces.routing.IFilter;
@@ -21,14 +20,13 @@ import logisticspipes.utils.ItemIdentifier;
 import logisticspipes.utils.Pair3;
 import logisticspipes.utils.SinkReply;
 import net.minecraft.client.renderer.texture.IconRegister;
-import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.Icon;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-public class ModuleQuickSort implements ILogisticsModule {
+public class ModuleQuickSort extends LogisticsModule {
 
 	private final int stalledDelay = 24;
 	private final int normalDelay = 6;
@@ -63,12 +61,12 @@ public class ModuleQuickSort implements ILogisticsModule {
 	public void writeToNBT(NBTTagCompound nbttagcompound) {}
 
 	@Override
-	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority) {
+	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
 		return null;
 	}
 
 	@Override
-	public ILogisticsModule getSubModule(int slot) {
+	public LogisticsModule getSubModule(int slot) {
 		return null;
 	}
 
@@ -82,18 +80,17 @@ public class ModuleQuickSort implements ILogisticsModule {
 			currentTick = normalDelay;
 		
 		//Extract Item
-		IInventory targetInventory = _invProvider.getPointedInventory();
-		if (targetInventory == null) return;
-//		if (targetInventory.getSizeInventory() < 27) return;
+		IInventoryUtil invUtil = _invProvider.getPointedInventory(true);
+		if (invUtil == null) return;
 
 		if(!_power.canUseEnergy(500)) {
 			stalled = true;
 			return;
 		}
-		IInventoryUtil invUtil = SimpleServiceLocator.inventoryUtilFactory.getInventoryUtil(targetInventory);
+		
 		if(invUtil instanceof SpecialInventoryHandler){
 			int maxItemsToSend = 128;
-			HashMap<ItemIdentifier, Integer> items = invUtil.getItemsAndCount();
+			Map<ItemIdentifier, Integer> items = invUtil.getItemsAndCount();
 			if(lastStackLookedAt>items.size())
 				lastStackLookedAt=0;
 			int lookedAt = 0;
@@ -156,25 +153,25 @@ public class ModuleQuickSort implements ILogisticsModule {
 			}
 		} else {
 			
-			if((!(invUtil instanceof SpecialInventoryHandler) && targetInventory.getSizeInventory() == 0) || !_power.canUseEnergy(500)) {
+			if((!(invUtil instanceof SpecialInventoryHandler) && invUtil.getSizeInventory() == 0) || !_power.canUseEnergy(500)) {
 				stalled = true;
 				return;
 			}
 			
-			if(lastSuceededStack >= targetInventory.getSizeInventory())
+			if(lastSuceededStack >= invUtil.getSizeInventory())
 				lastSuceededStack = 0;
 			
 			//incremented at the end of the previous loop.
-			if (lastStackLookedAt >= targetInventory.getSizeInventory())
+			if (lastStackLookedAt >= invUtil.getSizeInventory())
 				lastStackLookedAt = 0;
 			
-			ItemStack slot = targetInventory.getStackInSlot(lastStackLookedAt);
+			ItemStack slot = invUtil.getStackInSlot(lastStackLookedAt);
 	
 			while(slot==null) {
 				lastStackLookedAt++;
-				if (lastStackLookedAt >= targetInventory.getSizeInventory())
+				if (lastStackLookedAt >= invUtil.getSizeInventory())
 					lastStackLookedAt = 0;
-				slot = targetInventory.getStackInSlot(lastStackLookedAt);
+				slot = invUtil.getStackInSlot(lastStackLookedAt);
 				if(lastStackLookedAt == lastSuceededStack) {
 					stalled = true;
 					return; // then we have been around the list without sending, halt for now
@@ -200,7 +197,9 @@ public class ModuleQuickSort implements ILogisticsModule {
 			stalled = false;
 	
 			//don't directly modify the stack in the inv
+			int sizePrev;
 			slot = slot.copy();
+			sizePrev = slot.stackSize;
 			boolean partialSend=false;
 			while(reply != null) {
 				int count = slot.stackSize;
@@ -218,25 +217,28 @@ public class ModuleQuickSort implements ILogisticsModule {
 				jamList.add(reply.getValue1());
 				reply = _itemSender.hasDestination(ItemIdentifier.get(slot), false, jamList);
 			}
+			ItemStack returned = null;
+			int amountToExtract = sizePrev - slot.stackSize;
 			if(slot.stackSize > 0) {
 				partialSend = true;
-				targetInventory.setInventorySlotContents(lastStackLookedAt, slot);
-			} else {
-				targetInventory.setInventorySlotContents(lastStackLookedAt, null);
+			}
+			returned = invUtil.decrStackSize(lastStackLookedAt, amountToExtract);
+			if(returned.stackSize != amountToExtract) {
+				throw new UnsupportedOperationException("Couldn't extract the already sended items from the inventory.");
 			}
 	
 			lastSuceededStack=lastStackLookedAt;
 			// end duplicate code
 			lastStackLookedAt++;
 			if(partialSend){
-				if (lastStackLookedAt >= targetInventory.getSizeInventory())
+				if (lastStackLookedAt >= invUtil.getSizeInventory())
 					lastStackLookedAt = 0;
 				while(lastStackLookedAt != lastSuceededStack) {
-					ItemStack tstack = targetInventory.getStackInSlot(lastStackLookedAt);
+					ItemStack tstack = invUtil.getStackInSlot(lastStackLookedAt);
 					if(tstack != null && !slot.isItemEqual(tstack))
 						break;
 					lastStackLookedAt++;
-					if (lastStackLookedAt >= targetInventory.getSizeInventory())
+					if (lastStackLookedAt >= invUtil.getSizeInventory())
 						lastStackLookedAt = 0;
 					
 				}
@@ -254,12 +256,12 @@ public class ModuleQuickSort implements ILogisticsModule {
 	}
 	@Override 
 	public final int getY() {
-		return this._power.getX();
+		return this._power.getY();
 	}
 	
 	@Override 
 	public final int getZ() {
-		return this._power.getX();
+		return this._power.getZ();
 	}
 	@Override
 	public boolean hasGenericInterests() {

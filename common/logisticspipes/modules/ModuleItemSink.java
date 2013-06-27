@@ -10,8 +10,6 @@ import logisticspipes.gui.hud.modules.HUDItemSink;
 import logisticspipes.interfaces.IClientInformationProvider;
 import logisticspipes.interfaces.IHUDModuleHandler;
 import logisticspipes.interfaces.IHUDModuleRenderer;
-import logisticspipes.interfaces.ILogisticsGuiModule;
-import logisticspipes.interfaces.ILogisticsModule;
 import logisticspipes.interfaces.IModuleInventoryReceive;
 import logisticspipes.interfaces.IModuleWatchReciver;
 import logisticspipes.interfaces.ISendRoutedItem;
@@ -19,9 +17,9 @@ import logisticspipes.interfaces.IWorldProvider;
 import logisticspipes.logisticspipes.IInventoryProvider;
 import logisticspipes.network.GuiIDs;
 import logisticspipes.network.NetworkConstants;
-import logisticspipes.network.packets.PacketModuleInteger;
-import logisticspipes.network.packets.PacketModuleInvContent;
-import logisticspipes.network.packets.PacketPipeInteger;
+import logisticspipes.network.oldpackets.PacketModuleInteger;
+import logisticspipes.network.oldpackets.PacketModuleInvContent;
+import logisticspipes.network.oldpackets.PacketPipeInteger;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.utils.ISimpleInventoryEventHandler;
 import logisticspipes.utils.ItemIdentifier;
@@ -38,7 +36,7 @@ import cpw.mods.fml.common.network.Player;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-public class ModuleItemSink implements ILogisticsGuiModule, IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver, ISimpleInventoryEventHandler, IModuleInventoryReceive {
+public class ModuleItemSink extends LogisticsGuiModule implements IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver, ISimpleInventoryEventHandler, IModuleInventoryReceive {
 	
 	private final SimpleInventory _filterInventory = new SimpleInventory(9, "Requested items", 1);
 	private boolean _isDefaultRoute;
@@ -87,7 +85,7 @@ public class ModuleItemSink implements ILogisticsGuiModule, IClientInformationPr
 	@Override 
 	public final int getY() {
 		if(slot>=0)
-			return this._power.getX();
+			return this._power.getY();
 		else 
 			return -1;
 	}
@@ -95,7 +93,7 @@ public class ModuleItemSink implements ILogisticsGuiModule, IClientInformationPr
 	@Override 
 	public final int getZ() {
 		if(slot>=0)
-			return this._power.getX();
+			return this._power.getZ();
 		else 
 			return -1-slot;
 	}
@@ -104,7 +102,8 @@ public class ModuleItemSink implements ILogisticsGuiModule, IClientInformationPr
 	private static final SinkReply _sinkReply = new SinkReply(FixedPriority.ItemSink, 0, true, false, 1, 0);
 	private static final SinkReply _sinkReplyDefault = new SinkReply(FixedPriority.DefaultRoute, 0, true, true, 1, 0);
 	@Override
-	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority) {
+	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
+		if(_isDefaultRoute && !allowDefault) return null;
 		if(bestPriority > _sinkReply.fixedPriority.ordinal() || (bestPriority == _sinkReply.fixedPriority.ordinal() && bestCustomPriority >= _sinkReply.customPriority)) return null;
 		if (_filterInventory.containsUndamagedItem(item.getUndamaged())){
 			if(_power.canUseEnergy(1)) {
@@ -128,7 +127,7 @@ public class ModuleItemSink implements ILogisticsGuiModule, IClientInformationPr
 	}
 	
 	@Override
-	public ILogisticsModule getSubModule(int slot) {return null;}
+	public LogisticsModule getSubModule(int slot) {return null;}
 
 	@Override
 	public void readFromNBT(NBTTagCompound nbttagcompound) {

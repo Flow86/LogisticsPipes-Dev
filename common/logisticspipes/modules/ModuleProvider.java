@@ -15,8 +15,6 @@ import logisticspipes.interfaces.IHUDModuleHandler;
 import logisticspipes.interfaces.IHUDModuleRenderer;
 import logisticspipes.interfaces.IInventoryUtil;
 import logisticspipes.interfaces.ILegacyActiveModule;
-import logisticspipes.interfaces.ILogisticsGuiModule;
-import logisticspipes.interfaces.ILogisticsModule;
 import logisticspipes.interfaces.IModuleInventoryReceive;
 import logisticspipes.interfaces.IModuleWatchReciver;
 import logisticspipes.interfaces.ISendRoutedItem;
@@ -30,8 +28,8 @@ import logisticspipes.logisticspipes.ExtractionMode;
 import logisticspipes.logisticspipes.IInventoryProvider;
 import logisticspipes.network.GuiIDs;
 import logisticspipes.network.NetworkConstants;
-import logisticspipes.network.packets.PacketModuleInvContent;
-import logisticspipes.network.packets.PacketPipeInteger;
+import logisticspipes.network.oldpackets.PacketModuleInvContent;
+import logisticspipes.network.oldpackets.PacketPipeInteger;
 import logisticspipes.pipefxhandlers.Particles;
 import logisticspipes.pipes.basic.CoreRoutedPipe.ItemSendMode;
 import logisticspipes.proxy.MainProxy;
@@ -55,7 +53,7 @@ import cpw.mods.fml.common.network.Player;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-public class ModuleProvider implements ILogisticsGuiModule, ILegacyActiveModule, IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver, IModuleInventoryReceive {
+public class ModuleProvider extends LogisticsGuiModule implements ILegacyActiveModule, IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver, IModuleInventoryReceive {
 	
 	protected IInventoryProvider _invProvider;
 	protected ISendRoutedItem _itemSender;
@@ -133,12 +131,12 @@ public class ModuleProvider implements ILogisticsGuiModule, ILegacyActiveModule,
 	}
 
 	@Override
-	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority) {
+	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
 		return null;
 	}
 
 	@Override
-	public ILogisticsModule getSubModule(int slot) {
+	public LogisticsModule getSubModule(int slot) {
 		return null;
 	}
 
@@ -206,10 +204,10 @@ public class ModuleProvider implements ILogisticsGuiModule, ILegacyActiveModule,
 
 	@Override
 	public void getAllItems(Map<ItemIdentifier, Integer> items, List<IFilter> filters) {
-		if (_invProvider.getPointedInventory() == null) return;
+		IInventoryUtil inv =_invProvider.getPointedInventory(_extractionMode,true);
+		if (inv == null) return;
 		
-		IInventoryUtil inv = getAdaptedUtil(_invProvider.getPointedInventory());
-		HashMap<ItemIdentifier, Integer> currentInv = inv.getItemsAndCount();
+		Map<ItemIdentifier, Integer> currentInv = inv.getItemsAndCount();
 
 		//Skip already added items from this provider, skip filtered items, Reduce what has been reserved, add.
 outer:
@@ -238,11 +236,11 @@ outer:
 	// returns 0 on "unable to do this delivery"
 	private int sendStack(ItemIdentifierStack stack, int maxCount, int destination, List<IRelayItem> relays) {
 		ItemIdentifier item = stack.getItem();
-		if (_invProvider.getPointedInventory() == null) {
+		IInventoryUtil inv = _invProvider.getPointedInventory(_extractionMode,true);
+		if (inv == null) {
 			_orderManager.sendFailed();
 			return 0;
 		}
-		IInventoryUtil inv = getAdaptedUtil(_invProvider.getPointedInventory());
 		
 		int available = inv.itemCount(item);
 		if (available == 0) {
@@ -257,7 +255,7 @@ outer:
 			_orderManager.sendFailed();
 			return 0;
 		}
-		SinkReply reply = LogisticsManagerV2.canSink(dRtr, null, true, stack.getItem(), null, true);
+		SinkReply reply = LogisticsManagerV2.canSink(dRtr, null, true, stack.getItem(), null, true, false);
 		boolean defersend = false;
 		if(reply != null) {// some pipes are not aware of the space in the adjacent inventory, so they return null
 			if(reply.maxNumberOfItems < wanted) {
@@ -282,11 +280,11 @@ outer:
 	
 	private int getTotalItemCount(ItemIdentifier item) {
 		
-		if (_invProvider.getPointedInventory() == null) return 0;
+		IInventoryUtil inv = _invProvider.getPointedInventory(_extractionMode,true);
+		if (inv == null) return 0;
 		
 		if(!filterAllowsItem(item)) return 0;
 		
-		IInventoryUtil inv = getAdaptedUtil(_invProvider.getPointedInventory());
 		return inv.itemCount(item);
 	}
 	
@@ -297,26 +295,6 @@ outer:
 	private boolean itemIsFiltered(ItemIdentifier item){
 		return _filterInventory.containsItem(item);
 	}
-	
-	private IInventoryUtil getAdaptedUtil(IInventory base){
-		switch(_extractionMode){
-			case LeaveFirst:
-				return SimpleServiceLocator.inventoryUtilFactory.getHidingInventoryUtil(base, false, false, 1, 0);
-			case LeaveLast:
-				return SimpleServiceLocator.inventoryUtilFactory.getHidingInventoryUtil(base, false, false, 0, 1);
-			case LeaveFirstAndLast:
-				return SimpleServiceLocator.inventoryUtilFactory.getHidingInventoryUtil(base, false, false, 1, 1);
-			case Leave1PerStack:
-				return SimpleServiceLocator.inventoryUtilFactory.getHidingInventoryUtil(base, true, false, 0, 0);
-			case Leave1PerType:
-				return SimpleServiceLocator.inventoryUtilFactory.getHidingInventoryUtil(base, false, true, 0, 0);
-			default:
-				break;
-		}
-		return SimpleServiceLocator.inventoryUtilFactory.getHidingInventoryUtil(base, false, false, 0, 0);
-	}
-
-
 	
 	/*** GUI STUFF ***/
 	
@@ -371,7 +349,7 @@ outer:
 	@Override 
 	public final int getY() {
 		if(slot>=0)
-			return this._invProvider.getX();
+			return this._invProvider.getY();
 		else 
 			return -1;
 	}
@@ -379,7 +357,7 @@ outer:
 	@Override 
 	public final int getZ() {
 		if(slot>=0)
-			return this._invProvider.getX();
+			return this._invProvider.getZ();
 		else 
 			return -1-slot;
 	}

@@ -10,16 +10,14 @@ import logisticspipes.gui.hud.modules.HUDModBasedItemSink;
 import logisticspipes.interfaces.IClientInformationProvider;
 import logisticspipes.interfaces.IHUDModuleHandler;
 import logisticspipes.interfaces.IHUDModuleRenderer;
-import logisticspipes.interfaces.ILogisticsGuiModule;
-import logisticspipes.interfaces.ILogisticsModule;
 import logisticspipes.interfaces.IModuleWatchReciver;
 import logisticspipes.interfaces.ISendRoutedItem;
 import logisticspipes.interfaces.IWorldProvider;
 import logisticspipes.logisticspipes.IInventoryProvider;
 import logisticspipes.network.GuiIDs;
 import logisticspipes.network.NetworkConstants;
-import logisticspipes.network.packets.PacketModuleNBT;
-import logisticspipes.network.packets.PacketPipeInteger;
+import logisticspipes.network.oldpackets.PacketModuleNBT;
+import logisticspipes.network.oldpackets.PacketPipeInteger;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.utils.ItemIdentifier;
 import logisticspipes.utils.SinkReply;
@@ -32,7 +30,7 @@ import cpw.mods.fml.common.network.Player;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-public class ModuleModBasedItemSink implements ILogisticsGuiModule, IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver {
+public class ModuleModBasedItemSink extends LogisticsGuiModule implements IClientInformationProvider, IHUDModuleHandler, IModuleWatchReciver {
 	
 	public final List<String> modList = new LinkedList<String>();
 	private BitSet modIdSet;
@@ -70,7 +68,7 @@ public class ModuleModBasedItemSink implements ILogisticsGuiModule, IClientInfor
 	@Override 
 	public final int getY() {
 		if(slot>=0)
-			return this._power.getX();
+			return this._power.getY();
 		else 
 			return -1;
 	}
@@ -78,7 +76,7 @@ public class ModuleModBasedItemSink implements ILogisticsGuiModule, IClientInfor
 	@Override 
 	public final int getZ() {
 		if(slot>=0)
-			return this._power.getX();
+			return this._power.getZ();
 		else 
 			return -1-slot;
 	}
@@ -86,7 +84,7 @@ public class ModuleModBasedItemSink implements ILogisticsGuiModule, IClientInfor
 	
 	private static final SinkReply _sinkReply = new SinkReply(FixedPriority.ModBasedItemSink, 0, true, false, 5, 0);
 	@Override
-	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority) {
+	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
 		if(bestPriority > _sinkReply.fixedPriority.ordinal() || (bestPriority == _sinkReply.fixedPriority.ordinal() && bestCustomPriority >= _sinkReply.customPriority)) return null;
 		if(modIdSet == null) {
 			buildModIdSet();
@@ -105,7 +103,7 @@ public class ModuleModBasedItemSink implements ILogisticsGuiModule, IClientInfor
 	}
 	
 	@Override
-	public ILogisticsModule getSubModule(int slot) {return null;}
+	public LogisticsModule getSubModule(int slot) {return null;}
 
 	private void buildModIdSet() {
 		modIdSet = new BitSet();

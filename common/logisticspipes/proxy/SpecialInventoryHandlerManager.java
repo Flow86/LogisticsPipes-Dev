@@ -2,6 +2,7 @@ package logisticspipes.proxy;
 
 import logisticspipes.proxy.specialinventoryhandler.AEInterfaceInventoryHandler;
 import logisticspipes.proxy.specialinventoryhandler.BarrelInventoryHandler;
+import logisticspipes.proxy.specialinventoryhandler.BarrelModInventoryHandler;
 import logisticspipes.proxy.specialinventoryhandler.CrateInventoryHandler;
 import logisticspipes.proxy.specialinventoryhandler.DSUInventoryHandler;
 import logisticspipes.proxy.specialinventoryhandler.DigitalChestHandler;
@@ -26,8 +27,12 @@ public class SpecialInventoryHandlerManager {
 			SimpleServiceLocator.inventoryUtilFactory.registerHandler(new AEInterfaceInventoryHandler());
 		}
 
-		if(Loader.isModLoaded("MFReloaded")) {
+		if(Loader.isModLoaded("MineFactoryReloaded")) {
 			SimpleServiceLocator.inventoryUtilFactory.registerHandler(new DSUInventoryHandler());
+		}
+
+		if(Loader.isModLoaded("barrels")) {
+			SimpleServiceLocator.inventoryUtilFactory.registerHandler(new BarrelModInventoryHandler());
 		}
 	}
 }

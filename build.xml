@@ -5,6 +5,7 @@
 
 	<!-- Properties -->
 	<property name="lp.dir"               value="LogisticsPipes-Dev"/>
+	<property name="test.dir"             value="test"/>
 	<property name="sign.dir"             value="/home/jenkins/.sign"/>
 
 	<property name="lib.dir"              value="${build.dir}/lib"/>
@@ -23,13 +24,17 @@
 	<property name="downloadserver.full"  value="${downloadserver}/${downloadserver.dir}"/>
 
 	<property name="antcont.version"        value="1.0b3"/>
-	<property name="forestry.version"       value="2.1.2.17"/>
+	<property name="bc.version"           value="3.6.0"/>
+	<property name="forestry.version"       value="2.2.4.3"/>
 	<property name="ic2.version"            value="1.115.304-lf"/>
 	<property name="cc.version"             value="1.52"/>
 	<property name="thaumcraft.version.api" value="0.0.5"/>
 	<property name="thaumcraft.version.mod" value="3.0.4b"/>
 	<property name="te.version"             value="2.3.0"/>
-	<property name="lp.version"             value="0.7.2"/>
+	<property name="lombok.version"       value="0.11.8"/>
+	<property name="jarjar.version"       value="1.4"/>
+	<property name="guava.version"        value="15.0-SNAPSHOT"/>
+	<property name="lp.version"           value="0.7.3"/>
 	
 	<!-- Targets -->
 	<target name="init-msg">
@@ -49,6 +54,9 @@
 		<get src="${downloadserver.full}ThaumcraftApi-${thaumcraft.version.api}-for-${thaumcraft.version.mod}.zip" dest="${download.dir}" usetimestamp="True"/>
 		<get src="${downloadserver.full}ThermalExpansion-API-${te.version}.zip" dest="${download.dir}" usetimestamp="True"/>
 		<get src="${downloadserver.full}ant-contrib-${antcont.version}-bin.zip" dest="${download.dir}" usetimestamp="True"/>
+		<get src="${downloadserver.full}jarjar-${jarjar.version}.jar" dest="${download.dir}" usetimestamp="True"/>
+		<get src="${downloadserver.full}guava-${guava.version}.jar" dest="${download.dir}" usetimestamp="True"/>
+		<get src="${downloadserver.full}lombok-${lombok.version}.jar" dest="${mcp.dir}/lib" usetimestamp="True"/>
 
 		<echo message="Download finished"/>
 
@@ -232,7 +240,12 @@
 	<target name="package-simple" depends="compile">
 		<echo message="Packing version ${lp.version.full}"/>
 
-		<jar destfile="${jar.dir}/LogisticsPipes-MC${mc.version}-${lp.version.full}.jar" basedir="${classes.dir}/client"/>
+		<taskdef name="jarjar" classname="com.tonicsystems.jarjar.JarJarTask" classpath="${download.dir}/jarjar-${jarjar.version}.jar"/>
+
+		<jarjar destfile="${jar.dir}/LogisticsPipes-MC${mc.version}-${lp.version.full}.jar" basedir="${classes.dir}/client">
+				<zipfileset src="${download.dir}/guava-${guava.version}.jar"/>
+				<rule pattern="com.google.common.**" result="logisticspipes.com.google.common.@1"/>
+		</jarjar>
 
 		<echo message="Packing finished"/>
 	</target>
@@ -243,14 +256,20 @@
 
 		<echo message="Packing version ${lp.version.full}"/>
 
-		<jar destfile="${jar.dir}/LogisticsPipes-MC${mc.version}-${lp.version.full}.jar" basedir="${classes.dir}/client">
+		<taskdef name="jarjar" classname="com.tonicsystems.jarjar.JarJarTask" classpath="${download.dir}/jarjar-${jarjar.version}.jar"/>
+
+		<jarjar destfile="${jar.dir}/LogisticsPipes-MC${mc.version}-${lp.version.full}.jar" basedir="${classes.dir}/client">
+			<zipfileset src="${download.dir}/guava-${guava.version}.jar"/>
+			<rule pattern="com.google.common.**" result="logisticspipes.com.google.common.@1"/>
+
 			<manifest>
 				<attribute name="Built-By" value="RS485-Jenkins"/>
 				<attribute name="Implementation-Vendor" value="RS485"/>
 				<attribute name="Implementation-Title" value="LogisticsPipes"/>
 				<attribute name="Implementation-Version" value="${lp.version.full}"/>
 			</manifest>
-		</jar>
+		</jarjar>
+
 		<signjar jar="${jar.dir}/LogisticsPipes-MC${mc.version}-${lp.version.full}.jar" alias="RS485" keystore="${sign.dir}/.keystore" storepass="${key}"/>
 
 		<echo message="Packing finished"/>
@@ -270,12 +289,28 @@
 		<property name="DEBUG"           value="true"/>
 	</target>
 	
+	<target name="dev">
+		<property name="src.dir"              value="src_dev"/>
+	</target>
+	
 	<target name="main" depends="vars, init-msg, clean, setup, package-simple"/>
 	
 	<target name="ci-dev" depends="vars-dev, init-msg, clean, setup, package-sign"/>
 	
 	<target name="ci" depends="vars, init-msg, clean, setup, package-sign"/>
+
+	<target name="test" depends="vars-test, init-msg, clean, setup, compile, package-simple">
+		<delete dir="${test.dir}"/>
+		<mkdir dir="${test.dir}"/>
+		<get src="${downloadserver.full}mcpc-plus-1.5.2-R0.2-forge716-B511.jar" dest="${test.dir}/svr.jar" usetimestamp="True"/>
+		<mkdir dir="${test.dir}/mods"/>
+		<get src="${downloadserver.full}buildcraft-A-3.6.0.jar" dest="${test.dir}/mods" usetimestamp="True"/>
+		<copy file="${jar.dir}/LogisticsPipes-MC${mc.version}-${lp.version.full}.jar" todir="${test.dir}/mods"/>
+		<copy file="${src.dir}/expect.tcl" todir="${test.dir}"/>
 	
-	<target name="test" depends="vars-test, init-msg, clean, setup, compile"/>
+		<exec dir="${test.dir}" executable="expect" osfamily="unix" failonerror="true">
+			<arg value="expect.tcl"/>
+		</exec>
+	</target>
 	
 </project>

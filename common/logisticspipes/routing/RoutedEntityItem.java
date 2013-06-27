@@ -1,6 +1,4 @@
-/** 
- * Copyright (c) Krapht, 2011
- * 
+/*
  * "LogisticsPipes" is distributed under the terms of the Minecraft Mod Public 
  * License 1.0, or MMPL. Please check the contents of the license located in
  * http://www.mod-buildcraft.com/MMPL-1.0.txt
@@ -12,10 +10,9 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.Delayed;
-import java.util.concurrent.TimeUnit;
 
 import logisticspipes.interfaces.routing.IRelayItem;
+import logisticspipes.interfaces.routing.IRequireReliableLiquidTransport;
 import logisticspipes.interfaces.routing.IRequireReliableTransport;
 import logisticspipes.items.LogisticsLiquidContainer;
 import logisticspipes.logisticspipes.IRoutedItem;
@@ -24,10 +21,12 @@ import logisticspipes.pipes.basic.CoreRoutedPipe.ItemSendMode;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.proxy.SimpleServiceLocator;
 import logisticspipes.utils.ItemIdentifierStack;
+import logisticspipes.utils.LiquidIdentifier;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
 import net.minecraftforge.common.ForgeDirection;
+import net.minecraftforge.liquids.LiquidStack;
 import buildcraft.BuildCraftCore;
 import buildcraft.api.core.Position;
 import buildcraft.api.transport.IPipedItem;
@@ -37,6 +36,7 @@ import buildcraft.transport.PipeTransportItems;
 import buildcraft.transport.TileGenericPipe;
 
 public class RoutedEntityItem extends EntityPassiveItem implements IRoutedItem{
+
 
 	int destinationint = -1;
 	UUID destinationUUID;
@@ -61,7 +61,13 @@ public class RoutedEntityItem extends EntityPassiveItem implements IRoutedItem{
 		position = entityItem.getPosition();
 		speed = entityItem.getSpeed();
 		item = entityItem.getItemStack();
-		delay = 62*20; //64-2 ticks (assume destination consumes items at 1/tick) *20ms ; that way another stack gets sent 64 ticks after the first.
+		
+		if(world != null) {
+			delay = 10*20 + world.getTotalWorldTime(); //10 seconds, it should be delivered by then
+		} else {
+			delay = 62; //64-2 ticks (assume destination consumes items at 1/tick) *20ms ; that way another stack gets sent 64 ticks after the first.
+		}
+		
 		if(entityItem.getContribution("routingInformation") == null) {
 			this.addContribution("routingInformation", new RoutedEntityItemSaveHandler(this));
 		} else {
@@ -138,6 +144,12 @@ public class RoutedEntityItem extends EntityPassiveItem implements IRoutedItem{
 				if (destinationRouter.getPipe() != null && destinationRouter.getPipe().logic instanceof IRequireReliableTransport){
 					((IRequireReliableTransport)destinationRouter.getPipe().logic).itemLost(ItemIdentifierStack.GetFromStack(item));
 				}
+				if (destinationRouter.getPipe() != null && destinationRouter.getPipe().logic instanceof IRequireReliableLiquidTransport) {
+					if(item.getItem() instanceof LogisticsLiquidContainer) {
+						LiquidStack liquid = SimpleServiceLocator.logisticsLiquidManager.getLiquidFromContainer(item);
+						((IRequireReliableLiquidTransport)destinationRouter.getPipe().logic).itemLost(LiquidIdentifier.get(liquid), liquid.amount);
+					}
+				}
 			}
 			jamlist.add(destinationint);
 		}
@@ -157,6 +169,12 @@ public class RoutedEntityItem extends EntityPassiveItem implements IRoutedItem{
 			IRouter destinationRouter = SimpleServiceLocator.routerManager.getRouter(destinationint); 
 			if (!arrived && destinationRouter.getPipe() != null && destinationRouter.getPipe().logic instanceof IRequireReliableTransport){
 				((IRequireReliableTransport)destinationRouter.getPipe().logic).itemLost(ItemIdentifierStack.GetFromStack(item));
+			}
+			if (!arrived && destinationRouter.getPipe() != null && destinationRouter.getPipe().logic instanceof IRequireReliableLiquidTransport) {
+				if(item.getItem() instanceof LogisticsLiquidContainer) {
+					LiquidStack liquid = SimpleServiceLocator.logisticsLiquidManager.getLiquidFromContainer(item);
+					((IRequireReliableLiquidTransport)destinationRouter.getPipe().logic).itemLost(LiquidIdentifier.get(liquid), liquid.amount);
+				}
 			}
 		}
 		super.remove();
@@ -366,25 +384,13 @@ public class RoutedEntityItem extends EntityPassiveItem implements IRoutedItem{
     private final long origin = System.currentTimeMillis();
     private final long delay;
 
-    @Override
-    public long getDelay( TimeUnit unit ) {
-        return unit.convert( delay - ( System.currentTimeMillis() - origin ),
-                TimeUnit.MILLISECONDS );
-    }
- 
-    @Override
-    public int compareTo( Delayed delayed ) {
-        if( delayed == this ) {
-            return 0;
-        }
- 
-        if( delayed instanceof RoutedEntityItem ) {
-            long diff = delay - ( ( RoutedEntityItem )delayed ).delay;
-            return ( ( diff == 0 ) ? 0 : ( ( diff < 0 ) ? -1 : 1 ) );
-        }
- 
-        long d = ( getDelay( TimeUnit.MILLISECONDS ) - delayed.getDelay( TimeUnit.MILLISECONDS ) );
-        return ( ( d == 0 ) ? 0 : ( ( d < 0 ) ? -1 : 1 ) );
-    }
+	@Override
+	public long getTimeOut() {
+		return delay;
+	}
+	@Override
+	public long getTickToTimeOut() {
+		return delay-this.container.worldObj.getTotalWorldTime();
+	}
 
 }

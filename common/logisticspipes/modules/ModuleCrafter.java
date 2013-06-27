@@ -6,7 +6,6 @@ import java.util.List;
 
 import logisticspipes.api.IRoutedPowerProvider;
 import logisticspipes.interfaces.IInventoryUtil;
-import logisticspipes.interfaces.ILogisticsModule;
 import logisticspipes.interfaces.ISendRoutedItem;
 import logisticspipes.interfaces.IWorldProvider;
 import logisticspipes.logisticspipes.IInventoryProvider;
@@ -29,7 +28,7 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
 //IHUDModuleHandler, 
-public class ModuleCrafter implements ILogisticsModule{
+public class ModuleCrafter extends LogisticsModule{
 	
 	//private final SimpleInventory _filterInventory = new SimpleInventory(9, "Requested items", 1);
 	/*private boolean _isDefaultRoute;
@@ -64,18 +63,18 @@ public class ModuleCrafter implements ILogisticsModule{
 	}
 	@Override 
 	public final int getY() {
-		return this.pipe.getX();
+		return this.pipe.getY();
 	}
 	
 	@Override 
 	public final int getZ() {
-		return this.pipe.getX();
+		return this.pipe.getZ();
 	}
 	
 	private static final SinkReply _sinkReply = new SinkReply(FixedPriority.ItemSink, 0, true, false, 1, 0);
 	private static final SinkReply _sinkReplyDefault = new SinkReply(FixedPriority.DefaultRoute, 0, true, true, 1, 0);
 	@Override
-	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority) {
+	public SinkReply sinksItem(ItemIdentifier item, int bestPriority, int bestCustomPriority, boolean allowDefault, boolean includeInTransit) {
 		if(bestPriority > _sinkReply.fixedPriority.ordinal() || (bestPriority == _sinkReply.fixedPriority.ordinal() && bestCustomPriority >= _sinkReply.customPriority)) return null;
 		//if(pipe.getSpecificInterests().contains(item))
 			return new SinkReply(_sinkReply, spaceFor(item));
@@ -90,7 +89,7 @@ public class ModuleCrafter implements ILogisticsModule{
 			if (tile.tile instanceof TileGenericPipe) continue;
 			IInventory base = (IInventory) tile.tile;
 			if (base instanceof net.minecraft.inventory.ISidedInventory) {
-				base = new SidedInventoryMinecraftAdapter((net.minecraft.inventory.ISidedInventory) base, tile.orientation.getOpposite());
+				base = new SidedInventoryMinecraftAdapter((net.minecraft.inventory.ISidedInventory) base, tile.orientation.getOpposite(),false);
 			}
 			if (base instanceof net.minecraftforge.common.ISidedInventory) {
 				base = new SidedInventoryForgeAdapter((net.minecraftforge.common.ISidedInventory) base, tile.orientation.getOpposite());
@@ -102,7 +101,7 @@ public class ModuleCrafter implements ILogisticsModule{
 	}
 	
 	@Override
-	public ILogisticsModule getSubModule(int slot) {return null;}
+	public LogisticsModule getSubModule(int slot) {return null;}
 
 	@Override
 	public void readFromNBT(NBTTagCompound nbttagcompound) {

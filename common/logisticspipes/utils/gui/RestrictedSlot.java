@@ -33,5 +33,4 @@ public class RestrictedSlot extends Slot {
     		return slotCheck.isStackAllowed(par1ItemStack);
     	}
     }
-
 }

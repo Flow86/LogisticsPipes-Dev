@@ -8,9 +8,10 @@ import java.util.List;
 
 import logisticspipes.LogisticsPipes;
 import logisticspipes.network.NetworkConstants;
-import logisticspipes.network.packets.LogisticsPipesPacket;
+import logisticspipes.network.oldpackets.PacketLogisticsPipes;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.ticks.RoutingTableUpdateThread;
+import logisticspipes.ticks.Watchdog;
 import logisticspipes.utils.ItemIdentifier;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
@@ -48,7 +49,7 @@ public class LogisticsPipesCommand extends CommandBase {
         		throw new WrongUsageException("You can't use this command.");
         	}
         	sender.sendChatToPlayer("Trying to Enable NBTDebug");
-        	MainProxy.sendPacketToPlayer(new LogisticsPipesPacket() {
+        	MainProxy.sendPacketToPlayer(new PacketLogisticsPipes() {
 				@Override public void writeData(DataOutputStream data) throws IOException {}
 				@Override public void readData(DataInputStream data) throws IOException {}
 				@Override public int getID() {return NetworkConstants.ACTIVATNBTDEBUG;}
@@ -62,7 +63,7 @@ public class LogisticsPipesCommand extends CommandBase {
         		throw new WrongUsageException("You can't use this command.");
         	}
         	sender.sendChatToPlayer("Requesting Transfer");
-        	MainProxy.sendPacketToPlayer(new LogisticsPipesPacket() {
+        	MainProxy.sendPacketToPlayer(new PacketLogisticsPipes() {
 				@Override public void writeData(DataOutputStream data) throws IOException {}
 				@Override public void readData(DataInputStream data) throws IOException {}
 				@Override public int getID() {return NetworkConstants.REQUEST_UPDATE_NAMES;}
@@ -84,6 +85,13 @@ public class LogisticsPipesCommand extends CommandBase {
         	sender.sendChatToPlayer("- routingthread : Display Routing thread status information.");
         	sender.sendChatToPlayer("- transfernames : Sends all item names form the client to the server to update the Language Database.");//TODO
         	return;
+        } else if(LogisticsPipes.DEBUG) {
+			if(arguments[0].equalsIgnoreCase("watch")) {
+	        	new Watchdog(MainProxy.proxy.getSide().equals("Client"));
+				LogisticsPipes.WATCHDOG = true;
+	        	sender.sendChatToPlayer("Starting Watchdog");
+	        	return;
+	        }
         }
     	throw new WrongUsageException(this.getCommandUsage(sender));
 	}

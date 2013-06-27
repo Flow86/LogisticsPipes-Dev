@@ -21,10 +21,12 @@ import logisticspipes.blocks.LogisticsSecurityTileEntity;
 import logisticspipes.interfaces.ISecurityStationManager;
 import logisticspipes.interfaces.routing.IDirectConnectionManager;
 import logisticspipes.network.NetworkConstants;
-import logisticspipes.network.packets.PacketStringList;
+import logisticspipes.network.oldpackets.PacketStringList;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.MainProxy;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraftforge.common.ForgeDirection;
+import cpw.mods.fml.common.network.Player;
 
 
 public class RouterManager implements IRouterManager, IDirectConnectionManager, ISecurityStationManager {
@@ -334,8 +336,14 @@ public class RouterManager implements IRouterManager, IDirectConnectionManager, 
 	public void setClientAuthorizationList(List<String> list) {
 		this._authorized = list;
 	}
+	
 	@Override
 	public void sendClientAuthorizationList() {
 		MainProxy.sendToAllPlayers(new PacketStringList(NetworkConstants.SECURITY_AUTHORIZEDLIST_UPDATE, this._authorized).getPacket());		
+	}
+	
+	@Override
+	public void sendClientAuthorizationList(EntityPlayer player) {
+		MainProxy.sendCompressedPacketToPlayer(new PacketStringList(NetworkConstants.SECURITY_AUTHORIZEDLIST_UPDATE, this._authorized).getPacket(), (Player)player);		
 	}
 }

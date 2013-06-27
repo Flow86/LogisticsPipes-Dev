@@ -5,9 +5,11 @@ import java.util.List;
 import java.util.WeakHashMap;
 
 import logisticspipes.LogisticsPipes;
+import logisticspipes.blocks.crafting.FakePlayer;
 import logisticspipes.config.Configs;
+import logisticspipes.main.LogisticsEventListener;
 import logisticspipes.network.NetworkConstants;
-import logisticspipes.network.packets.PacketRenderFX;
+import logisticspipes.network.oldpackets.PacketRenderFX;
 import logisticspipes.pipefxhandlers.PipeFXRenderHandler;
 import logisticspipes.proxy.interfaces.IProxy;
 import logisticspipes.ticks.RoutingTableUpdateThread;
@@ -17,9 +19,10 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.Packet250CustomPayload;
 import net.minecraft.server.ServerListenThread;
 import net.minecraft.server.ThreadMinecraftServer;
+import net.minecraft.tileentity.TileEntity;
+import net.minecraft.world.ChunkCoordIntPair;
 import net.minecraft.world.World;
 import net.minecraftforge.common.DimensionManager;
-import buildcraft.core.DefaultProps;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.network.PacketDispatcher;
 import cpw.mods.fml.common.network.Player;
@@ -139,11 +142,21 @@ public class MainProxy {
 		}
 	}
 
-	public static void sendPacketToAllAround(double X, double Y, double Z, double range, int dimensionId, Packet packet) {
+	public static void sendPacketToAllWatchingChunk(int X, int Z, int dimensionId, Packet packet) {
+		ChunkCoordIntPair chunk = new ChunkCoordIntPair(X >> 4, Z >> 4);
+		List<EntityPlayer> players = LogisticsEventListener.watcherList.get(chunk);
+		if(players != null) {
+			for(EntityPlayer player:players) {
+				if(MainProxy.getDimensionForWorld(player.worldObj) == dimensionId) {
+					sendPacketToPlayer(packet, (Player)player);
+				}
+			}
+			return;
+		}
 		if(!isDirectSendPacket(packet)) {
 			new Exception("Packet size too big").printStackTrace();
 		}
-		PacketDispatcher.sendPacketToAllAround(X, Y, Z, range, dimensionId, packet);
+		PacketDispatcher.sendPacketToAllAround(X, 64, Z, 128, dimensionId, packet);
 	}
 	
 	public static void sendToPlayerList(Packet packet, List<EntityPlayer> players) {
@@ -214,7 +227,7 @@ public class MainProxy {
 	public static void sendSpawnParticlePacket(int particle, int xCoord, int yCoord, int zCoord, World dimension, int amount) {
 		if(!Configs.ENABLE_PARTICLE_FX) return;
 		if(MainProxy.isServer(dimension)) {
-			MainProxy.sendPacketToAllAround(xCoord, yCoord, zCoord, DefaultProps.NETWORK_UPDATE_RANGE, MainProxy.getDimensionForWorld(dimension), new PacketRenderFX(NetworkConstants.PARTICLE_FX_RENDER_DATA, xCoord, yCoord, zCoord, particle, amount).getPacket());
+			MainProxy.sendPacketToAllWatchingChunk(xCoord, zCoord, MainProxy.getDimensionForWorld(dimension), new PacketRenderFX(NetworkConstants.PARTICLE_FX_RENDER_DATA, xCoord, yCoord, zCoord, particle, amount).getPacket());
 		} else {
 			LogisticsPipes.log.severe("Server only method on Client (Particle Spawning)");
 		}
@@ -223,5 +236,9 @@ public class MainProxy {
 	public static void spawnParticle(int particle, int xCoord, int yCoord, int zCoord, int amount) {
 		if(!Configs.ENABLE_PARTICLE_FX || !Minecraft.isFancyGraphicsEnabled()) return;
 		PipeFXRenderHandler.spawnGenericParticle(particle, xCoord, yCoord, zCoord, amount);
+	}
+	
+	public static EntityPlayer getFakePlayer(TileEntity tile) {
+		return new FakePlayer(tile);
 	}
 }
