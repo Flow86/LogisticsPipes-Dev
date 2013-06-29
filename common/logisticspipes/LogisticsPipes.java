@@ -53,6 +53,7 @@ import logisticspipes.proxy.cc.LogisticsPowerJuntionTileEntity_CC_IC2_BuildCraft
 import logisticspipes.proxy.cc.LogisticsTileGenericPipe_CC;
 import logisticspipes.proxy.recipeproviders.AssemblyAdvancedWorkbench;
 import logisticspipes.proxy.recipeproviders.AutoWorkbench;
+import logisticspipes.proxy.recipeproviders.LogisticsCraftingTable;
 import logisticspipes.proxy.recipeproviders.RollingMachine;
 import logisticspipes.proxy.recipeproviders.SolderingStation;
 import logisticspipes.proxy.specialconnection.SpecialPipeConnection;
@@ -74,6 +75,7 @@ import logisticspipes.ticks.QueuedTasks;
 import logisticspipes.ticks.RenderTickHandler;
 import logisticspipes.ticks.RoutingTableUpdateThread;
 import logisticspipes.ticks.ServerPacketBufferHandlerThread;
+import logisticspipes.ticks.Watchdog;
 import logisticspipes.ticks.WorldTickHandler;
 import logisticspipes.utils.InventoryUtilFactory;
 import logisticspipes.utils.LiquidIdentifier;
@@ -139,10 +141,12 @@ public class LogisticsPipes {
 	//Log Requests
 	public static boolean DisplayRequests;
 
-	public static boolean DEBUG = "%DEBUG%".equals("%" + "DEBUG" + "%") || "%DEBUG%".equals("true");
-	public static boolean DEBUG_OVGEN = false;
+	public static final boolean DEBUG = "%DEBUG%".equals("%" + "DEBUG" + "%") || "%DEBUG%".equals("true");
+	public static final boolean DEBUG_OVGEN = false;
 	public static final String MCVersion = "%MCVERSION%";
 	public static final String VERSION = "%VERSION%:%DEBUG%";
+	public static final boolean DEV_BUILD = VERSION.contains(".dev.") || DEBUG;
+	public static boolean WATCHDOG = false;
 	
 	private boolean certificateError = false;
 
@@ -274,6 +278,10 @@ public class LogisticsPipes {
 			log.severe("Certificate not correct");
 			log.severe("This in not a LogisticsPipes version from RS485.");
 		}
+		if(DEV_BUILD && !MainProxy.proxy.getSide().equals("Bukkit")) {
+			new Watchdog(evt.getSide() == Side.CLIENT);
+			WATCHDOG = true;
+		}
 	}
 	
 	@SuppressWarnings("deprecation")
@@ -377,6 +385,7 @@ public class LogisticsPipes {
 		SimpleServiceLocator.addCraftingRecipeProvider(new AutoWorkbench());
 		SimpleServiceLocator.addCraftingRecipeProvider(new AssemblyAdvancedWorkbench());
 		SimpleServiceLocator.addCraftingRecipeProvider(new SolderingStation());
+		SimpleServiceLocator.addCraftingRecipeProvider(new LogisticsCraftingTable());
 		if (RollingMachine.load())
 			SimpleServiceLocator.addCraftingRecipeProvider(new RollingMachine());
 		

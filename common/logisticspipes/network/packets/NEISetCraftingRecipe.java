@@ -6,8 +6,8 @@ import java.io.IOException;
 
 import logisticspipes.blocks.crafting.LogisticsCraftingTableTileEntity;
 import logisticspipes.network.SendNBTTagCompound;
-import logisticspipes.network.packets.abstracts.CoordinatesPacket;
-import logisticspipes.network.packets.abstracts.ModernPacket;
+import logisticspipes.network.abstractpackets.CoordinatesPacket;
+import logisticspipes.network.abstractpackets.ModernPacket;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -35,7 +35,7 @@ public class NEISetCraftingRecipe extends CoordinatesPacket {
 	
 	@Override
 	public ModernPacket template() {
-		return new NEISetCraftingRecipe(getID());
+		return new NEISetCraftingRecipe(getId());
 	}
 
 	@Override

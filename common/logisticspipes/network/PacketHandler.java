@@ -1,5 +1,8 @@
 package logisticspipes.network;
 
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -7,8 +10,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import logisticspipes.network.packets.abstracts.ModernPacket;
+import logisticspipes.network.abstractpackets.ModernPacket;
 import logisticspipes.proxy.MainProxy;
+import lombok.SneakyThrows;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.network.INetworkManager;
 import net.minecraft.network.packet.Packet250CustomPayload;
@@ -26,16 +30,20 @@ public class PacketHandler implements IPacketHandler {
 	public static Map<Class<? extends ModernPacket>, ModernPacket> packetmap;
 
 	@SuppressWarnings("unchecked")
+	// Suppressed because this cast should never fail.
 	public static <T extends ModernPacket> T getPacket(Class<T> clazz) {
-		return (T)packetmap.get(clazz).template();
+		return (T) packetmap.get(clazz).template();
 	}
 
 	@SuppressWarnings("unchecked")
+	// Suppressed because there shouldn't be non packet classes in the packets
+	// directory.
 	public PacketHandler() {
 		try {
 
 			final List<ClassInfo> classes = new ArrayList<ClassInfo>(ClassPath
-					.from(this.getClass().getClassLoader()).getTopLevelClasses(
+					.from(this.getClass().getClassLoader())
+					.getTopLevelClassesRecursive(
 							"logisticspipes.network.packets"));
 			Collections.sort(classes, new Comparator<ClassInfo>() {
 				@Override
@@ -68,16 +76,30 @@ public class PacketHandler implements IPacketHandler {
 		}
 	}
 
+	@SneakyThrows(IOException.class)
 	@Override
 	public void onPacketData(INetworkManager manager,
 			Packet250CustomPayload packet, Player player) {
 		if (packet.data == null) {
 			new Exception("Packet content has been null").printStackTrace();
 		}
-		if (MainProxy.isClient(((EntityPlayer) player).worldObj)) {
-			ClientPacketHandler.onPacketData(manager, packet, player);
+		final DataInputStream data = new DataInputStream(
+				new ByteArrayInputStream(packet.data));
+		onPacketData(data, player);
+	}
+
+	public static void onPacketData(final DataInputStream data,
+			final Player player) throws IOException {
+		final int packetID = data.read();
+		if (packetID >= 200) {// TODO: Temporary until all packets get converted
+			final ModernPacket packet = PacketHandler.packetlist.get(
+					packetID - 200).template();
+			packet.readData(data);
+			packet.processPacket((EntityPlayer) player);
+		} else if (MainProxy.isClient(((EntityPlayer) player).worldObj)) {
+			ClientPacketHandler.onPacketData(data, player, packetID);
 		} else {
-			ServerPacketHandler.onPacketData(manager, packet, player);
+			ServerPacketHandler.onPacketData(data, player, packetID);
 		}
 	}
 }

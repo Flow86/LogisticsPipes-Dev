@@ -47,7 +47,7 @@ import logisticspipes.modules.LogisticsGuiModule;
 import logisticspipes.modules.LogisticsModule;
 import logisticspipes.network.NetworkConstants;
 import logisticspipes.network.TilePacketWrapper;
-import logisticspipes.network.packets.old.PacketRoutingStats;
+import logisticspipes.network.oldpackets.PacketRoutingStats;
 import logisticspipes.pipefxhandlers.Particles;
 import logisticspipes.pipes.upgrades.UpgradeManager;
 import logisticspipes.proxy.MainProxy;
@@ -186,8 +186,8 @@ public abstract class CoreRoutedPipe extends Pipe implements IRequestItems, IAdj
 		return upgradeManager;
 	}
 	
-	public logisticspipes.network.packets.old.PacketPayload getLogisticsNetworkPacket() {
-		logisticspipes.network.packets.old.PacketPayload payload = new TilePacketWrapper(new Class[] { container.getClass(), transport.getClass(), logic.getClass() }).toPayload(getX(), getY(), getZ(), new Object[] { container, transport, logic });
+	public logisticspipes.network.oldpackets.PacketPayload getLogisticsNetworkPacket() {
+		logisticspipes.network.oldpackets.PacketPayload payload = new TilePacketWrapper(new Class[] { container.getClass(), transport.getClass(), logic.getClass() }).toPayload(getX(), getY(), getZ(), new Object[] { container, transport, logic });
 
 		return payload;
 	}
@@ -332,8 +332,10 @@ public abstract class CoreRoutedPipe extends Pipe implements IRequestItems, IAdj
 
 		// remove old items _inTransit -- these should have arrived, but have probably been lost instead. In either case, it will allow a re-send so that another attempt to re-fill the inventory can be made.		
 		while(this._inTransitToMe.peek()!=null && this._inTransitToMe.peek().getTickToTimeOut()<=0){
-			IRoutedItem p=_inTransitToMe.poll();
-			//LogisticsPipes.log.info("Timed Out: "+p.getIDStack().getItem().getFriendlyName());		
+			final IRoutedItem p=_inTransitToMe.poll();
+			if (LogisticsPipes.DEBUG) {
+					LogisticsPipes.log.info("Timed Out: "+p.getIDStack().getItem().getFriendlyName());
+			}
 		}
 		//update router before ticking logic/transport
 		getRouter().update(worldObj.getWorldTime() % Configs.LOGISTICS_DETECTION_FREQUENCY == _delayOffset || _initialInit);

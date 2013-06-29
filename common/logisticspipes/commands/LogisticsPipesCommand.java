@@ -8,9 +8,10 @@ import java.util.List;
 
 import logisticspipes.LogisticsPipes;
 import logisticspipes.network.NetworkConstants;
-import logisticspipes.network.packets.old.PacketLogisticsPipes;
+import logisticspipes.network.oldpackets.PacketLogisticsPipes;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.ticks.RoutingTableUpdateThread;
+import logisticspipes.ticks.Watchdog;
 import logisticspipes.utils.ItemIdentifier;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
@@ -84,6 +85,13 @@ public class LogisticsPipesCommand extends CommandBase {
         	sender.sendChatToPlayer("- routingthread : Display Routing thread status information.");
         	sender.sendChatToPlayer("- transfernames : Sends all item names form the client to the server to update the Language Database.");//TODO
         	return;
+        } else if(LogisticsPipes.DEBUG) {
+			if(arguments[0].equalsIgnoreCase("watch")) {
+	        	new Watchdog(MainProxy.proxy.getSide().equals("Client"));
+				LogisticsPipes.WATCHDOG = true;
+	        	sender.sendChatToPlayer("Starting Watchdog");
+	        	return;
+	        }
         }
     	throw new WrongUsageException(this.getCommandUsage(sender));
 	}

@@ -17,12 +17,11 @@ import logisticspipes.LogisticsPipes;
 import logisticspipes.interfaces.routing.IRequestLiquid;
 import logisticspipes.interfaces.routing.IRequireReliableLiquidTransport;
 import logisticspipes.network.GuiIDs;
-import logisticspipes.network.NetworkConstants;
 import logisticspipes.network.PacketHandler;
-import logisticspipes.network.packets.SatPipeNext;
-import logisticspipes.network.packets.abstracts.ModernPacket;
-import logisticspipes.network.packets.old.PacketCoordinates;
-import logisticspipes.network.packets.old.PacketPipeInteger;
+import logisticspipes.network.abstractpackets.ModernPacket;
+import logisticspipes.network.packets.satpipe.SatPipeNext;
+import logisticspipes.network.packets.satpipe.SatPipePrev;
+import logisticspipes.network.packets.satpipe.SatPipeSetID;
 import logisticspipes.pipes.PipeLiquidSatelliteLogistics;
 import logisticspipes.proxy.MainProxy;
 import logisticspipes.request.RequestTree;
@@ -100,7 +99,7 @@ public class BaseLogicLiquidSatellite extends BaseRoutingLogic implements IRequi
 			final ModernPacket packet = PacketHandler.getPacket(SatPipeNext.class).setPosX(xCoord).setPosY(yCoord).setPosZ(zCoord);
 			MainProxy.sendPacketToServer(packet.getPacket());
 		} else {
-			final PacketPipeInteger packet = new PacketPipeInteger(NetworkConstants.SATELLITE_PIPE_SATELLITE_ID, xCoord, yCoord, zCoord, satelliteId);
+			final ModernPacket packet = PacketHandler.getPacket(SatPipeSetID.class).setSatID(satelliteId).setPosX(xCoord).setPosY(yCoord).setPosZ(zCoord);
 			MainProxy.sendPacketToPlayer(packet.getPacket(), (Player)player);
 		}
 		updateWatchers();
@@ -110,10 +109,12 @@ public class BaseLogicLiquidSatellite extends BaseRoutingLogic implements IRequi
 		satelliteId = findId(-1);
 		ensureAllSatelliteStatus();
 		if (MainProxy.isClient(player.worldObj)) {
-			final PacketCoordinates packet = new PacketCoordinates(NetworkConstants.SATELLITE_PIPE_PREV, xCoord, yCoord, zCoord);
+			final ModernPacket packet = PacketHandler
+					.getPacket(SatPipePrev.class).setPosX(xCoord)
+					.setPosY(yCoord).setPosZ(zCoord);
 			MainProxy.sendPacketToServer(packet.getPacket());
 		} else {
-			final PacketPipeInteger packet = new PacketPipeInteger(NetworkConstants.SATELLITE_PIPE_SATELLITE_ID, xCoord, yCoord, zCoord, satelliteId);
+			final ModernPacket packet = PacketHandler.getPacket(SatPipeSetID.class).setSatID(satelliteId).setPosX(xCoord).setPosY(yCoord).setPosZ(zCoord);
 			MainProxy.sendPacketToPlayer(packet.getPacket(),(Player) player);
 		}
 		updateWatchers();
@@ -122,7 +123,7 @@ public class BaseLogicLiquidSatellite extends BaseRoutingLogic implements IRequi
 	
 	private void updateWatchers() {
 		for(EntityPlayer player : ((PipeLiquidSatelliteLogistics)this.container.pipe).localModeWatchers) {
-			final PacketPipeInteger packet = new PacketPipeInteger(NetworkConstants.SATELLITE_PIPE_SATELLITE_ID, xCoord, yCoord, zCoord, satelliteId);
+			final ModernPacket packet = PacketHandler.getPacket(SatPipeSetID.class).setSatID(satelliteId).setPosX(xCoord).setPosY(yCoord).setPosZ(zCoord);
 			MainProxy.sendPacketToPlayer(packet.getPacket(),(Player) player);
 		}
 	}
@@ -140,7 +141,7 @@ public class BaseLogicLiquidSatellite extends BaseRoutingLogic implements IRequi
 	public void onWrenchClicked(EntityPlayer entityplayer) {
 		if (MainProxy.isServer(entityplayer.worldObj)) {
 			// Send the satellite id when opening gui
-			final PacketPipeInteger packet = new PacketPipeInteger(NetworkConstants.SATELLITE_PIPE_SATELLITE_ID, xCoord, yCoord, zCoord, satelliteId);
+			final ModernPacket packet = PacketHandler.getPacket(SatPipeSetID.class).setSatID(satelliteId).setPosX(xCoord).setPosY(yCoord).setPosZ(zCoord);
 			MainProxy.sendPacketToPlayer(packet.getPacket(), (Player)entityplayer);
 			entityplayer.openGui(LogisticsPipes.instance, GuiIDs.GUI_SatelitePipe_ID, worldObj, xCoord, yCoord, zCoord);
 		}

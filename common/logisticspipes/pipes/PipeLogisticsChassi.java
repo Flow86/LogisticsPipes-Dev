@@ -43,10 +43,10 @@ import logisticspipes.logisticspipes.ItemModuleInformationManager;
 import logisticspipes.logisticspipes.TransportLayer;
 import logisticspipes.modules.LogisticsModule;
 import logisticspipes.network.NetworkConstants;
-import logisticspipes.network.packets.old.PacketCoordinates;
-import logisticspipes.network.packets.old.PacketPipeInteger;
-import logisticspipes.network.packets.old.PacketPipeInvContent;
-import logisticspipes.network.packets.old.PacketPipeUpdate;
+import logisticspipes.network.oldpackets.PacketCoordinates;
+import logisticspipes.network.oldpackets.PacketPipeInteger;
+import logisticspipes.network.oldpackets.PacketPipeInvContent;
+import logisticspipes.network.oldpackets.PacketPipeUpdate;
 import logisticspipes.pipefxhandlers.Particles;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.pipes.upgrades.UpgradeManager;
@@ -401,7 +401,7 @@ public abstract class PipeLogisticsChassi extends CoreRoutedPipe implements ISim
 				LogisticsModule x = _module.getSubModule(i);
 				if (x instanceof ILegacyActiveModule) {
 					ILegacyActiveModule y = (ILegacyActiveModule)x;
-					y.registerPreviousLegacyModules(new ArrayList(prevModules));
+					y.registerPreviousLegacyModules(new ArrayList<ILegacyActiveModule>(prevModules));
 					prevModules.add(y);
 				}
 			}

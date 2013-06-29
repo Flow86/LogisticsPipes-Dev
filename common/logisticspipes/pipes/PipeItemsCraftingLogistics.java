@@ -18,6 +18,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import logisticspipes.LogisticsPipes;
+import logisticspipes.blocks.crafting.LogisticsCraftingTableTileEntity;
 import logisticspipes.config.Configs;
 import logisticspipes.gui.hud.HUDCrafting;
 import logisticspipes.interfaces.IChangeListener;
@@ -37,11 +38,11 @@ import logisticspipes.modules.LogisticsModule;
 import logisticspipes.modules.ModuleCrafter;
 import logisticspipes.network.NetworkConstants;
 import logisticspipes.network.PacketHandler;
-import logisticspipes.network.packets.CPipeSatelliteImportBack;
-import logisticspipes.network.packets.old.PacketCoordinates;
-import logisticspipes.network.packets.old.PacketPipeInteger;
-import logisticspipes.network.packets.old.PacketPipeInvContent;
-import logisticspipes.network.packets.old.PacketPipeUpdate;
+import logisticspipes.network.oldpackets.PacketCoordinates;
+import logisticspipes.network.oldpackets.PacketPipeInteger;
+import logisticspipes.network.oldpackets.PacketPipeInvContent;
+import logisticspipes.network.oldpackets.PacketPipeUpdate;
+import logisticspipes.network.packets.cpipe.CPipeSatelliteImportBack;
 import logisticspipes.pipefxhandlers.Particles;
 import logisticspipes.pipes.basic.CoreRoutedPipe;
 import logisticspipes.proxy.MainProxy;
@@ -196,6 +197,29 @@ public class PipeItemsCraftingLogistics extends CoreRoutedPipe implements ICraft
 		return invUtil.getMultipleItems(wanteditem, Math.min(count, available));
 	}
 	
+	private ItemStack extractFromLogisticsCraftingTable(LogisticsCraftingTableTileEntity tile, ItemIdentifier wanteditem, int count) {
+		ItemStack retstack = null;
+		while(count > 0) {
+			ItemStack stack = tile.getOutput(wanteditem, this);
+			if(stack == null || stack.stackSize == 0) break;
+			if(retstack == null) {
+				if(!wanteditem.fuzzyMatch(stack)) break;
+			} else {
+				if(!retstack.isItemEqual(stack)) break;
+				if(!ItemStack.areItemStackTagsEqual(retstack, stack)) break;
+			}
+			if(!useEnergy(neededEnergy() * stack.stackSize)) break;
+			
+			if(retstack == null) {
+				retstack = stack;
+			} else {
+				retstack.stackSize += stack.stackSize;
+			}
+			count -= stack.stackSize;
+		}
+		return retstack;		
+	}
+	
 	public void enableUpdateRequest() {
 		init = false;
 	}
@@ -259,7 +283,9 @@ public class PipeItemsCraftingLogistics extends CoreRoutedPipe implements ICraft
 			AdjacentTile tile = null;
 			for (Iterator<AdjacentTile> it = crafters.iterator(); it.hasNext();) {
 				tile = it.next();
-				if (tile.tile instanceof ISpecialInventory) {
+				if (tile.tile instanceof LogisticsCraftingTableTileEntity) {
+					extracted = extractFromLogisticsCraftingTable((LogisticsCraftingTableTileEntity)tile.tile, nextOrder.getValue1().getItem(), maxtosend);
+				} else if (tile.tile instanceof ISpecialInventory) {
 					extracted = extractFromISpecialInventory((ISpecialInventory) tile.tile, nextOrder.getValue1().getItem(), maxtosend);
 				} else if (tile.tile instanceof net.minecraft.inventory.ISidedInventory) {
 					IInventory sidedadapter = new SidedInventoryMinecraftAdapter((net.minecraft.inventory.ISidedInventory) tile.tile, ForgeDirection.UNKNOWN,true);
