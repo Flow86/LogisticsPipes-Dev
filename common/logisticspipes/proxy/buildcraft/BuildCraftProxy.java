@@ -189,6 +189,8 @@ public class BuildCraftProxy {
 	}
 
 	public IRoutedItem CreateRoutedItem(ItemStack payload, World worldObj) {
+		if(payload == null)
+			payload = new ItemStack();
 		EntityPassiveItem entityItem = new EntityPassiveItem(worldObj, 0, 0, 0, payload);
 		return CreateRoutedItem(worldObj, entityItem);
 	}

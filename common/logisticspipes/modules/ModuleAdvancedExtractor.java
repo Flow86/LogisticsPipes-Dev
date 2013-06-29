@@ -198,14 +198,16 @@ public class ModuleAdvancedExtractor extends LogisticsGuiModule implements ISnea
 				}
 
 				ItemStack stackToSend = invUtil.getMultipleItems(item.getKey(), item.getValue());
-				_itemSender.sendStack(stackToSend, reply, itemSendMode());
-				itemsleft -= count;
-				if(itemsleft <= 0) break;
-				if(!SimpleServiceLocator.buildCraftProxy.checkMaxItems()) break;
+				if(stackToSend != null) {
+					_itemSender.sendStack(stackToSend, reply, itemSendMode());
+					itemsleft -= count;
+					
+					if(itemsleft <= 0) break;
+					if(!SimpleServiceLocator.buildCraftProxy.checkMaxItems()) break;
 
-
-				jamList.add(reply.getValue1());
-				reply = _itemSender.hasDestination(item.getKey(), true, jamList);
+					jamList.add(reply.getValue1());
+					reply = _itemSender.hasDestination(item.getKey(), true, jamList);
+				}
 			}
 			return;
 		}
